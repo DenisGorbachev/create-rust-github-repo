@@ -17,14 +17,11 @@ pub enum RepoVisibility {
 
 #[derive(Parser, Debug)]
 pub struct CreateRustGithubRepo {
-    #[arg(long, short, help = "Account name (either user or organization name)")]
-    account_name: String,
-
     #[arg(long, short = 'n', help = "Repository name")]
-    repo_name: String,
+    name: String,
 
     #[arg(long, short = 'v', help = "Repository visibility", value_enum, default_value_t)]
-    repo_visibility: RepoVisibility,
+    visibility: RepoVisibility,
 
     #[arg(long, short, help = "Source directory for configuration files", value_parser = value_parser!(PathBuf))]
     source: PathBuf,
@@ -41,8 +38,8 @@ pub struct CreateRustGithubRepo {
     #[arg(long, help = "Forwarded arguments for `gh repo create`", value_delimiter = ' ')]
     gh_repo_create_args: Vec<String>,
 
-    #[arg(long, help = "Forwarded arguments for `git clone`", value_delimiter = ' ')]
-    git_clone_args: Vec<String>,
+    #[arg(long, help = "Forwarded arguments for `gh repo clone`", value_delimiter = ' ')]
+    gh_repo_clone_args: Vec<String>,
 
     #[arg(long, help = "Forwarded arguments for `cargo init`", value_delimiter = ' ')]
     cargo_init_args: Vec<String>,
@@ -65,8 +62,8 @@ impl CreateRustGithubRepo {
             [
                 "repo",
                 "create",
-                &self.repo_name,
-                into_gh_create_repo_flag(self.repo_visibility),
+                &self.name,
+                into_gh_create_repo_flag(self.visibility),
             ],
             self.gh_repo_create_args.into_iter(),
             current_dir()?,
@@ -74,17 +71,7 @@ impl CreateRustGithubRepo {
         .context("Failed to create GitHub repository")?;
 
         // Clone the repo
-        exec(
-            "git",
-            [
-                "clone",
-                &format!("git@github.com:{}/{}.git", self.account_name, self.repo_name),
-                self.target.to_str().unwrap(),
-            ],
-            self.git_clone_args.into_iter(),
-            current_dir()?,
-        )
-        .context("Failed to clone repository")?;
+        exec("gh", ["repo", "clone", &self.name, self.target.to_str().unwrap()], self.gh_repo_clone_args.into_iter(), current_dir()?).context("Failed to clone repository")?;
 
         // Run cargo init
         exec("cargo", ["init"], self.cargo_init_args.into_iter(), &self.target).context("Failed to initialize Cargo project")?;
