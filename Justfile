@@ -1,6 +1,5 @@
 import? 'Justfile.local.just'
 
-set dotenv-path := "dev.env"
 set quiet
 
 default:
