@@ -1,0 +1,11 @@
+pre-commit:
+  parallel: true
+  commands:
+    format:
+      run: cargo fmt --all && git add {all_files}
+    lint:
+      run: cargo clippy --all-targets --all-features -- -D warnings
+    test-code:
+      run: cargo nextest run --no-fail-fast
+    test-docs:
+      run: cargo test --doc
