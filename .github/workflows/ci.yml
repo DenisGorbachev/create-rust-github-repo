@@ -1,0 +1,32 @@
+name: CI
+on: [push, pull_request]
+
+env:
+  RUSTFLAGS: -Dwarnings
+  RUST_BACKTRACE: 1
+
+jobs:
+  test:
+    name: cargo test
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        rust:
+          - nightly
+          - beta
+          - stable
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: ${{ matrix.rust }}
+          components: clippy, rustfmt
+      - run: cargo install cargo-hack --locked
+      - uses: actions/setup-node@v4
+        with:
+          node-version: lts/Iron # 20
+      - run: npm install --global remark
+      - run: lefthook run --force pre-commit
+      - run: cargo hack test --feature-powerset

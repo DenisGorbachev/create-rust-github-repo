@@ -3,9 +3,11 @@ pre-commit:
   commands:
     format:
       run: cargo fmt --all && git add {all_files}
-    lint:
+    lint-code:
       run: cargo clippy --all-targets --all-features -- -D warnings
     test-code:
       run: cargo nextest run --no-fail-fast
+    lint-docs:
+      run: remark --ignore-path .gitignore --quiet --frail .
     test-docs:
       run: cargo test --doc

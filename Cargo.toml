@@ -1,9 +1,9 @@
 [package]
-name = "create_rust_github_repo"
+name = "create-rust-github-repo"
 version = "0.1.0"
 edition = "2021"
 
 [dependencies]
 anyhow = "1.0.86"
-clap = { version = "4.5.9", features = ["derive"] }
+clap = { version = "4.3.24", features = ["derive"] }
 fs-err = "2.11.0"
