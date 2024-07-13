@@ -1,6 +1,12 @@
 pre-commit:
   parallel: true
   commands:
+    generate-readme:
+      run: |
+        ./README.ts > README.md
+        # run remark again because README.md has changed  
+        remark --ignore-path .gitignore --quiet --frail README.md
+        git add README.md
     format:
       run: cargo fmt --all && git add {all_files}
     lint-code:
