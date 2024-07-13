@@ -4,6 +4,9 @@
 
 # Create Rust GitHub repo
 
+[![Build](https://github.com/DenisGorbachev/create-rust-github-repo/actions/workflows/ci.yml/badge.svg)](https://github.com/DenisGorbachev/create-rust-github-repo)
+[![Documentation](https://docs.rs/create-rust-github-repo/badge.svg)](https://docs.rs/create-rust-github-repo)
+
 ## Overview
 
 `create-rust-github-repo` is a CLI program that creates a new repository on GitHub, clones it locally, initializes a Rust project, copies the configs from a pre-existing directory.
