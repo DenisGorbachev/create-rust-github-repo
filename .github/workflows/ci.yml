@@ -13,9 +13,9 @@ jobs:
       fail-fast: false
       matrix:
         rust:
-          - nightly
-          - beta
           - stable
+          - beta
+          - nightly
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
@@ -27,7 +27,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: lts/Iron # 20
-      - uses: Swatinem/rust-cache@v2.7
+      - uses: Swatinem/rust-cache@v2.7.3
       - run: npm install --global remark
       - run: npm install --global lefthook
       - run: lefthook run --force pre-commit
