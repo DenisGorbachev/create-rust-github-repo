@@ -15,6 +15,16 @@ pub enum RepoVisibility {
     Internal,
 }
 
+impl RepoVisibility {
+    pub fn to_gh_create_repo_flag(&self) -> &'static str {
+        match self {
+            RepoVisibility::Public => "--public",
+            RepoVisibility::Private => "--private",
+            RepoVisibility::Internal => "--internal",
+        }
+    }
+}
+
 #[derive(Parser, Debug)]
 pub struct CreateRustGithubRepo {
     #[arg(long, short = 'n', help = "Repository name")]
@@ -66,7 +76,7 @@ impl CreateRustGithubRepo {
                 "repo",
                 "create",
                 &self.name,
-                into_gh_create_repo_flag(self.visibility),
+                self.visibility.to_gh_create_repo_flag(),
             ],
             self.gh_repo_create_args.into_iter(),
             &current_dir,
@@ -99,14 +109,6 @@ impl CreateRustGithubRepo {
         exec("git", ["push"], self.git_push_args.into_iter(), &dir).context("Failed to push changes")?;
 
         Ok(())
-    }
-}
-
-pub fn into_gh_create_repo_flag(repo_visibility: RepoVisibility) -> &'static str {
-    match repo_visibility {
-        RepoVisibility::Public => "--public",
-        RepoVisibility::Private => "--private",
-        RepoVisibility::Internal => "--internal",
     }
 }
 
