@@ -1,5 +1,34 @@
 # Create Rust GitHub repo
 
+## Overview
+
+`create-rust-github-repo` is a CLI program that creates a new repository on GitHub, clones it locally, initializes a Rust project, copies the configs from a pre-existing directory.
+
+## Examples
+
+```shell
+# Create a GitHub repo & init a Rust project
+create-rust-github-repo --name my-new-project
+ 
+# Copy configs from existing project
+create-rust-github-repo --name my-new-project --copy-configs-from ~/workspace/my-existing-project
+
+# Clone to a specific directory
+create-rust-github-repo --name my-new-project --dir ~/workspace/my-new-project
+
+# Create a public repo
+create-rust-github-repo --name my-new-project --public
+
+# Create a lib instead of bin
+create-rust-github-repo --name my-new-project --cargo-init-args '--lib'
+```
+
+## Features
+
+* Uses existing `gh`, `git`, `cargo` commands
+* Forwards the flags to commands
+* Can be used as a library
+
 ## Installation
 
 ```shell
@@ -9,17 +38,17 @@ cargo install create-rust-github-repo
 ## Usage
 
 ```shell
-Usage: create-rust-github-repo [OPTIONS] --name <NAME> --source <SOURCE> --target <TARGET>
+Usage: create-rust-github-repo [OPTIONS] --name <NAME>
 
 Options:
   -n, --name <NAME>
           Repository name
+  -d, --dir <DIR>
+          Target directory for cloning the repository (must include the repo name) (defaults to "{current_dir}/{repo_name}")
   -v, --visibility <VISIBILITY>
           Repository visibility [default: private] [possible values: public, private, internal]
-  -s, --source <SOURCE>
+  -c, --copy-configs-from <COPY_CONFIGS_FROM>
           Source directory for configuration files
-  -t, --target <TARGET>
-          Target directory for cloning the repository (must include the repo name)
       --git-commit-message <GIT_COMMIT_MESSAGE>
           Message for git commit [default: "Add configs"]
       --extra-configs <EXTRA_CONFIGS>

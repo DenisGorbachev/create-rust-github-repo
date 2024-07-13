@@ -20,14 +20,14 @@ pub struct CreateRustGithubRepo {
     #[arg(long, short = 'n', help = "Repository name")]
     name: String,
 
+    #[arg(long, short, help = "Target directory for cloning the repository (must include the repo name) (defaults to \"{current_dir}/{repo_name}\")", value_parser = value_parser!(PathBuf))]
+    dir: Option<PathBuf>,
+
     #[arg(long, short = 'v', help = "Repository visibility", value_enum, default_value_t)]
     visibility: RepoVisibility,
 
     #[arg(long, short, help = "Source directory for configuration files", value_parser = value_parser!(PathBuf))]
-    source: PathBuf,
-
-    #[arg(long, short, help = "Target directory for cloning the repository (must include the repo name)", value_parser = value_parser!(PathBuf))]
-    target: PathBuf,
+    copy_configs_from: Option<PathBuf>,
 
     #[arg(long, help = "Message for git commit", default_value = "Add configs")]
     git_commit_message: String,
@@ -56,6 +56,9 @@ pub struct CreateRustGithubRepo {
 
 impl CreateRustGithubRepo {
     pub fn run(self) -> anyhow::Result<()> {
+        let current_dir = current_dir()?;
+        let dir = self.dir.unwrap_or(current_dir.join(&self.name));
+
         // Create a GitHub repo
         exec(
             "gh",
@@ -66,32 +69,34 @@ impl CreateRustGithubRepo {
                 into_gh_create_repo_flag(self.visibility),
             ],
             self.gh_repo_create_args.into_iter(),
-            current_dir()?,
+            &current_dir,
         )
         .context("Failed to create GitHub repository")?;
 
         // Clone the repo
-        exec("gh", ["repo", "clone", &self.name, self.target.to_str().unwrap()], self.gh_repo_clone_args.into_iter(), current_dir()?).context("Failed to clone repository")?;
+        exec("gh", ["repo", "clone", &self.name, dir.to_str().unwrap()], self.gh_repo_clone_args.into_iter(), &current_dir).context("Failed to clone repository")?;
 
         // Run cargo init
-        exec("cargo", ["init"], self.cargo_init_args.into_iter(), &self.target).context("Failed to initialize Cargo project")?;
+        exec("cargo", ["init"], self.cargo_init_args.into_iter(), &dir).context("Failed to initialize Cargo project")?;
 
-        let mut configs: Vec<String> = vec![];
-        configs.extend(CONFIGS.iter().copied().map(ToOwned::to_owned));
-        configs.extend(self.extra_configs);
-        // Copy config files
-        copy_configs(&self.source, &self.target, configs).context("Failed to copy configuration files")?;
+        if let Some(copy_configs_from) = self.copy_configs_from {
+            let mut configs: Vec<String> = vec![];
+            configs.extend(CONFIGS.iter().copied().map(ToOwned::to_owned));
+            configs.extend(self.extra_configs);
+            // Copy config files
+            copy_configs(&copy_configs_from, &dir, configs).context("Failed to copy configuration files")?;
+        }
 
         // Run cargo build
-        exec("cargo", ["build"], self.cargo_build_args.into_iter(), &self.target).context("Failed to build Cargo project")?;
+        exec("cargo", ["build"], self.cargo_build_args.into_iter(), &dir).context("Failed to build Cargo project")?;
 
         // Git commit
-        exec("git", ["add", "."], Vec::<String>::new().into_iter(), &self.target).context("Failed to stage files for commit")?;
+        exec("git", ["add", "."], Vec::<String>::new().into_iter(), &dir).context("Failed to stage files for commit")?;
 
-        exec("git", ["commit", "-m", &self.git_commit_message], self.git_commit_args.into_iter(), &self.target).context("Failed to commit changes")?;
+        exec("git", ["commit", "-m", &self.git_commit_message], self.git_commit_args.into_iter(), &dir).context("Failed to commit changes")?;
 
         // Git push
-        exec("git", ["push"], self.git_push_args.into_iter(), &self.target).context("Failed to push changes")?;
+        exec("git", ["push"], self.git_push_args.into_iter(), &dir).context("Failed to push changes")?;
 
         Ok(())
     }
