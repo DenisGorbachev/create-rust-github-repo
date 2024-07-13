@@ -4,8 +4,8 @@ pre-commit:
     generate-readme:
       run: |
         ./README.ts > README.md
-        # run remark again because README.md has changed  
-        remark --ignore-path .gitignore --quiet --frail README.md
+        # run remark again because README.md has changed
+        remark --ignore-path .gitignore --quiet --frail --no-stdout README.md
         git add README.md
     format:
       run: cargo fmt --all && git add {all_files}
@@ -14,6 +14,6 @@ pre-commit:
     test-code:
       run: cargo nextest run --no-fail-fast
     lint-docs:
-      run: remark --ignore-path .gitignore --quiet --frail .
+      run: remark --ignore-path .gitignore --quiet --frail --no-stdout .
     test-docs:
       run: cargo test --doc
