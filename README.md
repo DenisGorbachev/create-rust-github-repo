@@ -44,7 +44,7 @@ cargo install create-rust-github-repo
 
 ## Usage
 
-```shell
+```
 Usage: create-rust-github-repo [OPTIONS] --name <NAME>
 
 Options:

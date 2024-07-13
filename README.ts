@@ -82,7 +82,7 @@ cargo install ${packageName}
 
 ## Usage
 
-\`\`\`shell
+\`\`\`
 ${decoder.decode(help.stdout).trim()}
 \`\`\`
 

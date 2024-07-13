@@ -32,7 +32,6 @@ jobs:
         with:
           deno-version: v1.45.x
       - uses: Swatinem/rust-cache@v2.7.3
-      - run: npm install --global remark-cli
-      - run: npm install --global lefthook
+      - run: npm install --global lefthook remark-cli
       - run: lefthook run --force pre-commit
       - run: cargo hack test --feature-powerset
