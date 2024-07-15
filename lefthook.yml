@@ -6,9 +6,10 @@ pre-commit:
         ./README.ts > README.md
         # run remark again because README.md has changed
         remark --ignore-path .gitignore --quiet --frail --no-stdout README.md
-        git add README.md
+      stage_fixed: true
     format:
-      run: cargo fmt --all && git add {all_files}
+      run: cargo fmt --all
+      stage_fixed: true
     lint-code:
       run: cargo clippy --all-targets --all-features -- -D warnings
     test-code:
