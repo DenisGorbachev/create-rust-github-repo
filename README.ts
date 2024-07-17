@@ -16,7 +16,7 @@ const theCargoToml = toml.parse(theCargoTomlText) as unknown as CargoToml
 const packageName = theCargoToml.package.name
 const bin = packageName
 const help = await new Deno.Command("cargo", {
-  args: ['run', '--', '--help']
+  args: ['run', '--bin', bin, '--', '--help']
 }).output();
 if (!help.success) throw help
 const repo = await getGitHubRepo()

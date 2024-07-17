@@ -1,8 +1,10 @@
+assert_lefthook_installed: true
 pre-commit:
   parallel: true
   commands:
     generate-readme:
       run: |
+        set -eu
         ./README.ts > README.md
         # run remark again because README.md has changed
         remark --ignore-path .gitignore --quiet --frail --no-stdout README.md
