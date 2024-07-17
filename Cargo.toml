@@ -10,7 +10,13 @@ readme = "README.md"
 keywords = ["github", "utils"]
 categories = ["command-line-utilities", "development-tools"]
 
+[package.metadata.navigator]
+tagline = "my-awesome-android-app"
+summary = ""
+announcement = ""
+
 [dependencies]
 anyhow = "1.0.86"
 clap = { version = "4.3.24", features = ["derive"] }
 fs-err = "2.11.0"
+derive_setters = "0.1.6"

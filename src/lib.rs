@@ -6,6 +6,7 @@ use std::process::{Command, ExitStatus};
 
 use anyhow::Context;
 use clap::{value_parser, Parser, ValueEnum};
+use derive_setters::Setters;
 
 #[derive(ValueEnum, Default, Eq, PartialEq, Hash, Clone, Copy, Debug)]
 pub enum RepoVisibility {
@@ -25,13 +26,17 @@ impl RepoVisibility {
     }
 }
 
-#[derive(Parser, Debug)]
+#[derive(Parser, Setters, Debug)]
+#[setters(into)]
 pub struct CreateRustGithubRepo {
     #[arg(long, short = 'n', help = "Repository name")]
     name: String,
 
-    #[arg(long, short, help = "Target directory for cloning the repository (must include the repo name) (defaults to \"{current_dir}/{repo_name}\")", value_parser = value_parser!(PathBuf))]
+    #[arg(long, short, help = "Target directory for cloning the repository (must include the repo name) (defaults to \"{current_dir}/{repo_name}\") (see also: --workspace)", value_parser = value_parser!(PathBuf))]
     dir: Option<PathBuf>,
+
+    #[arg(long, short, help = "Parent of the target directory for cloning the repository (must NOT include the repo name). If this option is specified, then the repo is cloned to \"{workspace}/{repo_name}\". The --dir option overrides this option", value_parser = value_parser!(PathBuf))]
+    workspace: Option<PathBuf>,
 
     #[arg(long, short = 'v', help = "Repository visibility", value_enum, default_value_t)]
     visibility: RepoVisibility,
@@ -67,7 +72,10 @@ pub struct CreateRustGithubRepo {
 impl CreateRustGithubRepo {
     pub fn run(self) -> anyhow::Result<()> {
         let current_dir = current_dir()?;
-        let dir = self.dir.unwrap_or(current_dir.join(&self.name));
+        let dir = self
+            .dir
+            .or_else(|| self.workspace.map(|workspace| workspace.join(&self.name)))
+            .unwrap_or(current_dir.join(&self.name));
 
         // Create a GitHub repo
         exec(
