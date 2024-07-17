@@ -33,5 +33,10 @@ jobs:
           deno-version: v1.45.x
       - uses: Swatinem/rust-cache@v2.7.3
       - run: npm install --global lefthook@1.6.9 remark-cli@12.0.1
+      - name: Install yj
+        run: |
+          curl -L https://github.com/sclevine/yj/releases/download/v5.1.0/yj-linux-amd64 -o yj
+          chmod +x yj
+          sudo mv yj /usr/local/bin/
       - run: lefthook run --force pre-commit
       - run: cargo hack test --feature-powerset
