@@ -6,9 +6,8 @@ pre-commit:
       run: |
         set -eu
         ./README.ts > README.md
-        # run remark again because README.md has changed
-        remark --ignore-path .gitignore --quiet --frail --no-stdout README.md
-      stage_fixed: true
+        remark --ignore-path .gitignore --quiet --frail --no-stdout README.md # run remark again because README.md has changed
+        git add README.md # add README.md manually instead of using `stage_fixed` because it may not have been staged
     format:
       run: cargo fmt --all
       stage_fixed: true
