@@ -78,6 +78,13 @@ Options:
           Print help
 ```
 
+## Additional binaries
+
+* `create-rust-github-private-bin`
+* `create-rust-github-private-lib`
+* `create-rust-github-public-bin`
+* `create-rust-github-public-lib`
+
 ## License
 
 [Apache License 2.0](LICENSE-APACHE) or [MIT License](LICENSE-MIT) at your option.
