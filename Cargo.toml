@@ -10,8 +10,9 @@ readme = "README.md"
 keywords = ["github", "utils"]
 categories = ["command-line-utilities", "development-tools"]
 
-[package.metadata.navigator]
-tagline = "my-awesome-android-app"
+[package.metadata.details]
+title = "Create Rust GitHub repo"
+tagline = ""
 summary = ""
 announcement = ""
 
