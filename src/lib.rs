@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::env::current_dir;
 use std::ffi::OsStr;
 use std::io;
@@ -27,6 +28,7 @@ impl RepoVisibility {
 }
 
 #[derive(Parser, Setters, Debug)]
+#[command(version, about, author, after_help = "All command arg options support the following substitutions:\n* {{name}} - substituted with --name arg\n")]
 #[setters(into)]
 pub struct CreateRustGithubRepo {
     #[arg(long, short = 'n', help = "Repository name")]
@@ -37,6 +39,9 @@ pub struct CreateRustGithubRepo {
 
     #[arg(long, short, help = "Parent of the target directory for cloning the repository (must NOT include the repo name). If this option is specified, then the repo is cloned to \"{workspace}/{repo_name}\". The --dir option overrides this option", value_parser = value_parser!(PathBuf))]
     workspace: Option<PathBuf>,
+
+    #[arg(long, help = "Shell to use for executing commands", default_value = "/bin/sh")]
+    shell: String,
 
     #[arg(long, short = 'v', help = "Repository visibility", value_enum, default_value_t)]
     visibility: RepoVisibility,
@@ -49,6 +54,9 @@ pub struct CreateRustGithubRepo {
 
     #[arg(long, help = "Extra config file paths (relative to `source` directory)", value_delimiter = ',')]
     extra_configs: Vec<String>,
+
+    #[arg(long, help = "Shell command to check if repo exists (supports substitutions - see help below)", default_value = "gh repo view --json nameWithOwner \"{{name}}\" | grep \"{{name}}\"")]
+    repo_exists_cmd: String,
 
     #[arg(long, help = "Forwarded arguments for `gh repo create`", value_delimiter = ' ')]
     gh_repo_create_args: Vec<String>,
@@ -77,60 +85,117 @@ impl CreateRustGithubRepo {
             .or_else(|| self.workspace.map(|workspace| workspace.join(&self.name)))
             .unwrap_or(current_dir.join(&self.name));
 
-        // Create a GitHub repo
-        exec(
-            "gh",
-            [
-                "repo",
-                "create",
-                &self.name,
-                self.visibility.to_gh_create_repo_flag(),
-            ],
-            self.gh_repo_create_args.into_iter(),
-            &current_dir,
-        )
-        .context("Failed to create GitHub repository")?;
+        let substitutions = HashMap::<&'static str, &str>::from([("{{name}}", self.name.as_str())]);
 
-        // Clone the repo
-        exec("gh", ["repo", "clone", &self.name, dir.to_str().unwrap()], self.gh_repo_clone_args.into_iter(), &current_dir).context("Failed to clone repository")?;
+        let repo_exists = success(&self.shell, ["-c"], [self.repo_exists_cmd], &current_dir, &substitutions)?;
 
-        // Run cargo init
-        exec("cargo", ["init"], self.cargo_init_args.into_iter(), &dir).context("Failed to initialize Cargo project")?;
+        if !repo_exists {
+            // Create a GitHub repo
+            exec(
+                "gh",
+                [
+                    "repo",
+                    "create",
+                    &self.name,
+                    self.visibility.to_gh_create_repo_flag(),
+                ],
+                self.gh_repo_create_args,
+                &current_dir,
+                &substitutions,
+            )
+            .context("Failed to create GitHub repository")?;
+        }
+
+        if !dir.exists() {
+            // Clone the repo
+            exec("gh", ["repo", "clone", &self.name, dir.to_str().unwrap()], self.gh_repo_clone_args.into_iter(), &current_dir, &substitutions).context("Failed to clone repository")?;
+        } else {
+            println!("Directory \"{}\" exists, skipping clone command", dir.display())
+        }
+
+        let cargo_toml = dir.join("Cargo.toml");
+
+        if !cargo_toml.exists() {
+            // Run cargo init
+            exec("cargo", ["init"], self.cargo_init_args.into_iter(), &dir, &substitutions).context("Failed to initialize Cargo project")?;
+        } else {
+            println!("Cargo.toml exists in \"{}\", skipping `cargo init` command", dir.display())
+        }
 
         if let Some(copy_configs_from) = self.copy_configs_from {
             let mut configs: Vec<String> = vec![];
             configs.extend(CONFIGS.iter().copied().map(ToOwned::to_owned));
             configs.extend(self.extra_configs);
             // Copy config files
-            copy_configs(&copy_configs_from, &dir, configs).context("Failed to copy configuration files")?;
+            copy_configs_if_not_exists(&copy_configs_from, &dir, configs).context("Failed to copy configuration files")?;
         }
 
         // Run cargo build
-        exec("cargo", ["build"], self.cargo_build_args.into_iter(), &dir).context("Failed to build Cargo project")?;
+        exec("cargo", ["build"], self.cargo_build_args.into_iter(), &dir, &substitutions).context("Failed to build Cargo project")?;
 
         // Git commit
-        exec("git", ["add", "."], Vec::<String>::new().into_iter(), &dir).context("Failed to stage files for commit")?;
+        exec("git", ["add", "."], Vec::<String>::new().into_iter(), &dir, &substitutions).context("Failed to stage files for commit")?;
 
-        exec("git", ["commit", "-m", &self.git_commit_message], self.git_commit_args.into_iter(), &dir).context("Failed to commit changes")?;
+        exec("git", ["commit", "-m", &self.git_commit_message], self.git_commit_args.into_iter(), &dir, &substitutions).context("Failed to commit changes")?;
 
         // Git push
-        exec("git", ["push"], self.git_push_args.into_iter(), &dir).context("Failed to push changes")?;
+        exec("git", ["push"], self.git_push_args.into_iter(), &dir, &substitutions).context("Failed to push changes")?;
 
         Ok(())
     }
 }
 
-pub fn exec(cmd: impl AsRef<OsStr>, args: impl IntoIterator<Item = impl AsRef<OsStr>>, extra_args: impl IntoIterator<Item = impl AsRef<OsStr>>, current_dir: impl AsRef<Path>) -> io::Result<ExitStatus> {
+pub fn replace_args(args: impl IntoIterator<Item = String>, substitutions: &HashMap<&str, &str>) -> Vec<String> {
+    args.into_iter()
+        .map(|arg| replace_all(arg, substitutions))
+        .collect()
+}
+
+pub fn replace_all(mut input: String, substitutions: &HashMap<&str, &str>) -> String {
+    for (key, value) in substitutions {
+        input = input.replace(key, value);
+    }
+    input
+}
+
+pub fn exec(cmd: impl AsRef<OsStr>, args: impl IntoIterator<Item = impl AsRef<OsStr>>, extra_args: impl IntoIterator<Item = String>, current_dir: impl AsRef<Path>, substitutions: &HashMap<&str, &str>) -> io::Result<ExitStatus> {
+    let replacements = replace_args(extra_args, substitutions);
+    let extra_args = replacements.iter().map(AsRef::<OsStr>::as_ref);
+    exec_raw(cmd, args, extra_args, current_dir)
+}
+
+pub fn success(cmd: impl AsRef<OsStr>, args: impl IntoIterator<Item = impl AsRef<OsStr>>, extra_args: impl IntoIterator<Item = String>, current_dir: impl AsRef<Path>, substitutions: &HashMap<&str, &str>) -> io::Result<bool> {
+    let replacements = replace_args(extra_args, substitutions);
+    let extra_args = replacements.iter().map(AsRef::<OsStr>::as_ref);
+    success_raw(cmd, args, extra_args, current_dir)
+}
+
+pub fn exec_raw(cmd: impl AsRef<OsStr>, args: impl IntoIterator<Item = impl AsRef<OsStr>>, extra_args: impl IntoIterator<Item = impl AsRef<OsStr>>, current_dir: impl AsRef<Path>) -> io::Result<ExitStatus> {
+    get_status_raw(cmd, args, extra_args, current_dir).and_then(check_status)
+}
+
+pub fn success_raw(cmd: impl AsRef<OsStr>, args: impl IntoIterator<Item = impl AsRef<OsStr>>, extra_args: impl IntoIterator<Item = impl AsRef<OsStr>>, current_dir: impl AsRef<Path>) -> io::Result<bool> {
+    get_status_raw(cmd, args, extra_args, current_dir).map(|status| status.success())
+}
+
+pub fn get_status_raw(cmd: impl AsRef<OsStr>, args: impl IntoIterator<Item = impl AsRef<OsStr>>, extra_args: impl IntoIterator<Item = impl AsRef<OsStr>>, current_dir: impl AsRef<Path>) -> io::Result<ExitStatus> {
     Command::new(cmd)
         .args(args)
         .args(extra_args)
         .current_dir(current_dir)
         .spawn()?
         .wait()
-        .and_then(|status| if status.success() { Ok(status) } else { Err(io::Error::new(io::ErrorKind::Other, format!("Process exited with with status {}", status))) })
 }
 
-pub fn copy_configs<P: Clone + AsRef<Path>>(source: &Path, target: &Path, configs: impl IntoIterator<Item = P>) -> io::Result<()> {
+pub fn check_status(status: ExitStatus) -> io::Result<ExitStatus> {
+    if status.success() {
+        Ok(status)
+    } else {
+        Err(io::Error::new(io::ErrorKind::Other, format!("Process exited with with status {}", status)))
+    }
+}
+
+pub fn copy_configs_if_not_exists<P: Clone + AsRef<Path>>(source: &Path, target: &Path, configs: impl IntoIterator<Item = P>) -> io::Result<()> {
     for config in configs {
         let source_path = source.join(config.clone());
         let target_path = target.join(config);
@@ -154,3 +219,9 @@ pub const CONFIGS: &[&str] = &[
     "lefthook.json",
     ".lefthook.json",
 ];
+
+#[test]
+fn verify_cli() {
+    use clap::CommandFactory;
+    CreateRustGithubRepo::command().debug_assert();
+}

@@ -45,6 +45,8 @@ cargo install create-rust-github-repo
 ## Usage
 
 ```
+`create-rust-github-repo` is a CLI program that creates a new repository on GitHub, clones it locally, initializes a Rust project, copies the configs from a pre-existing directory.
+
 Usage: create-rust-github-repo [OPTIONS] --name <NAME>
 
 Options:
@@ -54,6 +56,8 @@ Options:
           Target directory for cloning the repository (must include the repo name) (defaults to "{current_dir}/{repo_name}") (see also: --workspace)
   -w, --workspace <WORKSPACE>
           Parent of the target directory for cloning the repository (must NOT include the repo name). If this option is specified, then the repo is cloned to "{workspace}/{repo_name}". The --dir option overrides this option
+      --shell <SHELL>
+          Shell to use for executing commands [default: /bin/sh]
   -v, --visibility <VISIBILITY>
           Repository visibility [default: private] [possible values: public, private, internal]
   -c, --copy-configs-from <COPY_CONFIGS_FROM>
@@ -62,6 +66,8 @@ Options:
           Message for git commit [default: "Add configs"]
       --extra-configs <EXTRA_CONFIGS>
           Extra config file paths (relative to `source` directory)
+      --repo-exists-cmd <REPO_EXISTS_CMD>
+          Shell command to check if repo exists (supports substitutions - see help below) [default: "gh repo view --json nameWithOwner \"{{name}}\" | grep \"{{name}}\""]
       --gh-repo-create-args <GH_REPO_CREATE_ARGS>
           Forwarded arguments for `gh repo create`
       --gh-repo-clone-args <GH_REPO_CLONE_ARGS>
@@ -76,6 +82,11 @@ Options:
           Forwarded arguments for `git push`
   -h, --help
           Print help
+  -V, --version
+          Print version
+
+All command arg options support the following substitutions:
+* {{name}} - substituted with --name arg
 ```
 
 ## Additional binaries
