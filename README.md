@@ -24,17 +24,18 @@ create-rust-github-repo --name my-new-project --copy-configs-from ~/workspace/my
 create-rust-github-repo --name my-new-project --dir ~/workspace/my-new-project
 
 # Create a public repo
-create-rust-github-repo --name my-new-project --public
+create-rust-github-repo --name my-new-project --repo-create-cmd "gh repo create --public {{name}}"
 
 # Create a lib instead of bin
-create-rust-github-repo --name my-new-project --cargo-init-args '--lib'
+create-rust-github-repo --name my-new-project --project-init-cmd "cargo init --lib"
 ```
 
 ## Features
 
-* Uses existing `gh`, `git`, `cargo` commands
-* Forwards the flags to commands
-* Can be used as a library
+* [x] Uses existing `gh`, `git`, `cargo` commands
+* [x] Supports overrides for all commands
+* [x] Supports substitutions (see help below)
+* [x] Can be used as a library
 
 ## Installation
 

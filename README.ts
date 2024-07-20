@@ -1,7 +1,7 @@
 #!/usr/bin/env -S deno run --allow-read --allow-run=bash,git,cargo --allow-env --allow-sys
 
 import * as zx from 'npm:zx'
-import { z, ZodSchema } from "https://deno.land/x/zod@v3.23.8/mod.ts";
+import { z, ZodSchema } from 'https://deno.land/x/zod@v3.23.8/mod.ts'
 import { assertEquals } from 'https://jsr.io/@std/assert/1.0.0/equals.ts'
 
 const CargoToml = z.object({
@@ -14,9 +14,9 @@ const CargoToml = z.object({
         title: z.string().min(1),
         tagline: z.string(),
         summary: z.string(),
-      })
-    })
-  })
+      }),
+    }),
+  }),
 })
 
 type CargoToml = z.infer<typeof CargoToml>;
@@ -28,17 +28,17 @@ const Repo = z.object({
 type Repo = z.infer<typeof Repo>;
 
 const $ = zx.$({
-  cwd: import.meta.dirname
+  cwd: import.meta.dirname,
 })
 const parse = <T>(schema: ZodSchema<T>, input: { toString: () => string }) => schema.parse(JSON.parse(input.toString()))
 const renderMarkdownList = (items: string[]) => items.map(bin => `* ${bin}`).join('\n')
 
 const theCargoToml: CargoToml = parse(CargoToml, await $`yj -t < Cargo.toml`)
-const { package: {name, description, metadata: {details: {title}}} } = theCargoToml
+const { package: { name, description, metadata: { details: { title } } } } = theCargoToml
 const bin = name
 const help = await $`cargo run --quiet --bin ${bin} -- --help`
 const repo: Repo = parse(Repo, await $`gh repo view --json url`)
-const extraBins = (await $`find src/bin/*.rs -type f -exec basename {} .rs \\;`).valueOf().split("\n")
+const extraBins = (await $`find src/bin/*.rs -type f -exec basename {} .rs \\;`).valueOf().split('\n')
 
 assertEquals(repo.url, theCargoToml.package.repository)
 
@@ -73,17 +73,18 @@ ${bin} --name my-new-project --copy-configs-from ~/workspace/my-existing-project
 ${bin} --name my-new-project --dir ~/workspace/my-new-project
 
 # Create a public repo
-${bin} --name my-new-project --public
+${bin} --name my-new-project --repo-create-cmd "gh repo create --public {{name}}"
 
 # Create a lib instead of bin
-${bin} --name my-new-project --cargo-init-args '--lib'
+${bin} --name my-new-project --project-init-cmd "cargo init --lib"
 \`\`\`
 
 ## Features
 
-* Uses existing \`gh\`, \`git\`, \`cargo\` commands
-* Forwards the flags to commands
-* Can be used as a library
+* [x] Uses existing \`gh\`, \`git\`, \`cargo\` commands
+* [x] Supports overrides for all commands
+* [x] Supports substitutions (see help below)
+* [x] Can be used as a library
 
 ## Installation
 
