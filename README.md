@@ -95,6 +95,11 @@ All command arg options support the following substitutions:
 * `create-rust-github-private-lib`
 * `create-rust-github-public-bin`
 * `create-rust-github-public-lib`
+* `create-rust-keybase-private-bin`
+
+## Gratitude
+
+Like the project? [Say thanks](https://github.com/DenisGorbachev/create-rust-github-repo)! ❤️
 
 ## License
 
