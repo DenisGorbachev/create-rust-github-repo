@@ -49,7 +49,7 @@ pub struct CreateRustGithubRepo {
     #[arg(long, help = "Extra config file paths (relative to `source` directory)", value_delimiter = ',')]
     extra_configs: Vec<String>,
 
-    #[arg(long, help = "Shell command to check if repo exists (supports substitutions - see help below)", default_value = "gh repo view --json nameWithOwner {{name}} | grep {{name}}")]
+    #[arg(long, help = "Shell command to check if repo exists (supports substitutions - see help below)", default_value = "gh repo view --json nameWithOwner {{name}} 2>/dev/null")]
     repo_exists_cmd: String,
 
     #[arg(long, help = "Shell command to create a repo (supports substitutions - see help below)", default_value = "gh repo create --private {{name}}")]

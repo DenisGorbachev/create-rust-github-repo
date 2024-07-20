@@ -63,7 +63,7 @@ Options:
       --extra-configs <EXTRA_CONFIGS>
           Extra config file paths (relative to `source` directory)
       --repo-exists-cmd <REPO_EXISTS_CMD>
-          Shell command to check if repo exists (supports substitutions - see help below) [default: "gh repo view --json nameWithOwner {{name}} | grep {{name}}"]
+          Shell command to check if repo exists (supports substitutions - see help below) [default: "gh repo view --json nameWithOwner {{name}} 2>/dev/null"]
       --repo-create-cmd <REPO_CREATE_CMD>
           Shell command to create a repo (supports substitutions - see help below) [default: "gh repo create --private {{name}}"]
       --repo-clone-cmd <REPO_CLONE_CMD>
