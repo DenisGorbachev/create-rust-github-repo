@@ -56,30 +56,28 @@ Options:
           Target directory for cloning the repository (must include the repo name) (defaults to "{current_dir}/{repo_name}") (see also: --workspace)
   -w, --workspace <WORKSPACE>
           Parent of the target directory for cloning the repository (must NOT include the repo name). If this option is specified, then the repo is cloned to "{workspace}/{repo_name}". The --dir option overrides this option
-      --shell <SHELL>
+      --shell-cmd <SHELL_CMD>
           Shell to use for executing commands [default: /bin/sh]
-  -v, --visibility <VISIBILITY>
-          Repository visibility [default: private] [possible values: public, private, internal]
   -c, --copy-configs-from <COPY_CONFIGS_FROM>
           Source directory for configuration files
-      --git-commit-message <GIT_COMMIT_MESSAGE>
-          Message for git commit [default: "Add configs"]
       --extra-configs <EXTRA_CONFIGS>
           Extra config file paths (relative to `source` directory)
       --repo-exists-cmd <REPO_EXISTS_CMD>
-          Shell command to check if repo exists (supports substitutions - see help below) [default: "gh repo view --json nameWithOwner \"{{name}}\" | grep \"{{name}}\""]
-      --gh-repo-create-args <GH_REPO_CREATE_ARGS>
-          Forwarded arguments for `gh repo create`
-      --gh-repo-clone-args <GH_REPO_CLONE_ARGS>
-          Forwarded arguments for `gh repo clone`
-      --cargo-init-args <CARGO_INIT_ARGS>
-          Forwarded arguments for `cargo init`
-      --cargo-build-args <CARGO_BUILD_ARGS>
-          Forwarded arguments for `cargo build`
-      --git-commit-args <GIT_COMMIT_ARGS>
-          Forwarded arguments for `git commit`
-      --git-push-args <GIT_PUSH_ARGS>
-          Forwarded arguments for `git push`
+          Shell command to check if repo exists (supports substitutions - see help below) [default: "gh repo view --json nameWithOwner {{name}} | grep {{name}}"]
+      --repo-create-cmd <REPO_CREATE_CMD>
+          Shell command to create a repo (supports substitutions - see help below) [default: "gh repo create --private {{name}}"]
+      --repo-clone-cmd <REPO_CLONE_CMD>
+          Shell command to clone a repo (supports substitutions - see help below) [default: "gh repo clone {{name}} {{dir}}"]
+      --project-init-cmd <PROJECT_INIT_CMD>
+          Shell command to initialize a project (supports substitutions - see help below) [default: "cargo init"]
+      --project-test-cmd <PROJECT_TEST_CMD>
+          Shell command to test a project (supports substitutions - see help below) [default: "cargo test"]
+      --repo-add-args <REPO_ADD_ARGS>
+          Shell command to add new files (supports substitutions - see help below) [default: "git add ."]
+      --repo-commit-args <REPO_COMMIT_ARGS>
+          Shell command to make a commit (supports substitutions - see help below) [default: "git commit -m \"Add configs\""]
+      --repo-push-args <REPO_PUSH_ARGS>
+          Shell command to push the commit (supports substitutions - see help below) [default: "git push"]
   -h, --help
           Print help
   -V, --version
@@ -87,6 +85,7 @@ Options:
 
 All command arg options support the following substitutions:
 * {{name}} - substituted with --name arg
+* {{dir}} - substituted with resolved directory for repo (the resolved value of --dir)
 ```
 
 ## Additional binaries

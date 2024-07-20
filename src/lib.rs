@@ -28,7 +28,7 @@ impl RepoVisibility {
 }
 
 #[derive(Parser, Setters, Debug)]
-#[command(version, about, author, after_help = "All command arg options support the following substitutions:\n* {{name}} - substituted with --name arg\n")]
+#[command(version, about, author, after_help = "All command arg options support the following substitutions:\n* {{name}} - substituted with --name arg\n* {{dir}} - substituted with resolved directory for repo (the resolved value of --dir)\n")]
 #[setters(into)]
 pub struct CreateRustGithubRepo {
     #[arg(long, short = 'n', help = "Repository name")]
@@ -41,40 +41,37 @@ pub struct CreateRustGithubRepo {
     workspace: Option<PathBuf>,
 
     #[arg(long, help = "Shell to use for executing commands", default_value = "/bin/sh")]
-    shell: String,
-
-    #[arg(long, short = 'v', help = "Repository visibility", value_enum, default_value_t)]
-    visibility: RepoVisibility,
+    shell_cmd: String,
 
     #[arg(long, short, help = "Source directory for configuration files", value_parser = value_parser!(PathBuf))]
     copy_configs_from: Option<PathBuf>,
 
-    #[arg(long, help = "Message for git commit", default_value = "Add configs")]
-    git_commit_message: String,
-
     #[arg(long, help = "Extra config file paths (relative to `source` directory)", value_delimiter = ',')]
     extra_configs: Vec<String>,
 
-    #[arg(long, help = "Shell command to check if repo exists (supports substitutions - see help below)", default_value = "gh repo view --json nameWithOwner \"{{name}}\" | grep \"{{name}}\"")]
+    #[arg(long, help = "Shell command to check if repo exists (supports substitutions - see help below)", default_value = "gh repo view --json nameWithOwner {{name}} | grep {{name}}")]
     repo_exists_cmd: String,
 
-    #[arg(long, help = "Forwarded arguments for `gh repo create`", value_delimiter = ' ')]
-    gh_repo_create_args: Vec<String>,
+    #[arg(long, help = "Shell command to create a repo (supports substitutions - see help below)", default_value = "gh repo create --private {{name}}")]
+    repo_create_cmd: String,
 
-    #[arg(long, help = "Forwarded arguments for `gh repo clone`", value_delimiter = ' ')]
-    gh_repo_clone_args: Vec<String>,
+    #[arg(long, help = "Shell command to clone a repo (supports substitutions - see help below)", default_value = "gh repo clone {{name}} {{dir}}")]
+    repo_clone_cmd: String,
 
-    #[arg(long, help = "Forwarded arguments for `cargo init`", value_delimiter = ' ')]
-    cargo_init_args: Vec<String>,
+    #[arg(long, help = "Shell command to initialize a project (supports substitutions - see help below)", default_value = "cargo init")]
+    project_init_cmd: String,
 
-    #[arg(long, help = "Forwarded arguments for `cargo build`", value_delimiter = ' ')]
-    cargo_build_args: Vec<String>,
+    #[arg(long, help = "Shell command to test a project (supports substitutions - see help below)", default_value = "cargo test")]
+    project_test_cmd: String,
 
-    #[arg(long, help = "Forwarded arguments for `git commit`", value_delimiter = ' ')]
-    git_commit_args: Vec<String>,
+    #[arg(long, help = "Shell command to add new files (supports substitutions - see help below)", default_value = "git add .")]
+    repo_add_args: String,
 
-    #[arg(long, help = "Forwarded arguments for `git push`", value_delimiter = ' ')]
-    git_push_args: Vec<String>,
+    #[arg(long, help = "Shell command to make a commit (supports substitutions - see help below)", default_value = "git commit -m \"Add configs\"")]
+    repo_commit_args: String,
+
+    #[arg(long, help = "Shell command to push the commit (supports substitutions - see help below)", default_value = "git push")]
+    repo_push_args: String,
 }
 
 impl CreateRustGithubRepo {
@@ -84,31 +81,23 @@ impl CreateRustGithubRepo {
             .dir
             .or_else(|| self.workspace.map(|workspace| workspace.join(&self.name)))
             .unwrap_or(current_dir.join(&self.name));
+        let dir_string = dir.display().to_string();
 
-        let substitutions = HashMap::<&'static str, &str>::from([("{{name}}", self.name.as_str())]);
+        let substitutions = HashMap::<&'static str, &str>::from([
+            ("{{name}}", self.name.as_str()),
+            ("{{dir}}", dir_string.as_str()),
+        ]);
 
-        let repo_exists = success(&self.shell, ["-c"], [self.repo_exists_cmd], &current_dir, &substitutions)?;
+        let repo_exists = success(&self.shell_cmd, ["-c"], [self.repo_exists_cmd], &current_dir, &substitutions)?;
 
         if !repo_exists {
             // Create a GitHub repo
-            exec(
-                "gh",
-                [
-                    "repo",
-                    "create",
-                    &self.name,
-                    self.visibility.to_gh_create_repo_flag(),
-                ],
-                self.gh_repo_create_args,
-                &current_dir,
-                &substitutions,
-            )
-            .context("Failed to create GitHub repository")?;
+            exec(&self.shell_cmd, ["-c"], [self.repo_create_cmd], &current_dir, &substitutions).context("Failed to create repository")?;
         }
 
         if !dir.exists() {
             // Clone the repo
-            exec("gh", ["repo", "clone", &self.name, dir.to_str().unwrap()], self.gh_repo_clone_args.into_iter(), &current_dir, &substitutions).context("Failed to clone repository")?;
+            exec(&self.shell_cmd, ["-c"], [self.repo_clone_cmd], &current_dir, &substitutions).context("Failed to clone repository")?;
         } else {
             println!("Directory \"{}\" exists, skipping clone command", dir.display())
         }
@@ -117,7 +106,7 @@ impl CreateRustGithubRepo {
 
         if !cargo_toml.exists() {
             // Run cargo init
-            exec("cargo", ["init"], self.cargo_init_args.into_iter(), &dir, &substitutions).context("Failed to initialize Cargo project")?;
+            exec(&self.shell_cmd, ["-c"], [self.project_init_cmd], &dir, &substitutions).context("Failed to initialize the project")?;
         } else {
             println!("Cargo.toml exists in \"{}\", skipping `cargo init` command", dir.display())
         }
@@ -130,16 +119,17 @@ impl CreateRustGithubRepo {
             copy_configs_if_not_exists(&copy_configs_from, &dir, configs).context("Failed to copy configuration files")?;
         }
 
-        // Run cargo build
-        exec("cargo", ["build"], self.cargo_build_args.into_iter(), &dir, &substitutions).context("Failed to build Cargo project")?;
+        // test
+        exec(&self.shell_cmd, ["-c"], [self.project_test_cmd], &dir, &substitutions).context("Failed to test the project")?;
 
-        // Git commit
-        exec("git", ["add", "."], Vec::<String>::new().into_iter(), &dir, &substitutions).context("Failed to stage files for commit")?;
+        // add
+        exec(&self.shell_cmd, ["-c"], [self.repo_add_args], &dir, &substitutions).context("Failed to add files for commit")?;
 
-        exec("git", ["commit", "-m", &self.git_commit_message], self.git_commit_args.into_iter(), &dir, &substitutions).context("Failed to commit changes")?;
+        // commit
+        exec(&self.shell_cmd, ["-c"], [self.repo_commit_args], &dir, &substitutions).context("Failed to commit changes")?;
 
-        // Git push
-        exec("git", ["push"], self.git_push_args.into_iter(), &dir, &substitutions).context("Failed to push changes")?;
+        // push
+        exec(&self.shell_cmd, ["-c"], [self.repo_push_args], &dir, &substitutions).context("Failed to push changes")?;
 
         Ok(())
     }

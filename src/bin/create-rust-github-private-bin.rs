@@ -1,9 +1,10 @@
 use clap::Parser;
-use create_rust_github_repo::{CreateRustGithubRepo, RepoVisibility};
+
+use create_rust_github_repo::CreateRustGithubRepo;
 
 fn main() -> anyhow::Result<()> {
     CreateRustGithubRepo::parse()
-        .visibility(RepoVisibility::Private)
-        .cargo_init_args(["--bin".to_string()])
+        .project_init_cmd("gh repo create --private {{name}}")
+        .project_init_cmd("cargo init --bin")
         .run()
 }
