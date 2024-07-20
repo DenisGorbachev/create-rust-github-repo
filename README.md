@@ -99,7 +99,7 @@ All command arg options support the following substitutions:
 
 ## Gratitude
 
-Like the project? [Say thanks](https://github.com/DenisGorbachev/create-rust-github-repo)! ❤️
+Like the project? [Say thanks!](https://github.com/DenisGorbachev/create-rust-github-repo/discussions/new?category=gratitude) ❤️
 
 ## License
 

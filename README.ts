@@ -104,7 +104,7 @@ ${renderMarkdownList(extraBins.map(bin => `\`${bin}\``))}
 
 ## Gratitude
 
-Like the project? [Say thanks](${repo.url})! ❤️
+Like the project? [Say thanks!](${repo.url}/discussions/new?category=gratitude) ❤️
 
 ## License
 
