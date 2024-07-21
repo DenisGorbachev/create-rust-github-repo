@@ -20,7 +20,7 @@ const CargoToml = z.object({
   }),
 })
 
-type CargoToml = z.infer<typeof CargoToml>;
+type CargoToml = z.infer<typeof CargoToml>
 
 const CargoMetadataSchema = z.object({
   packages: z.array(z.object({
@@ -31,32 +31,33 @@ const CargoMetadataSchema = z.object({
   })),
 })
 
-type CargoMetadata = z.infer<typeof CargoMetadataSchema>;
+type CargoMetadata = z.infer<typeof CargoMetadataSchema>
 
 const Repo = z.object({
   url: z.string().url(),
 })
 
-type Repo = z.infer<typeof Repo>;
+type Repo = z.infer<typeof Repo>
 
 const $ = zx.$({
   cwd: import.meta.dirname,
 })
-const parse = <T>(schema: ZodSchema<T>, input: { toString: () => string }) => schema.parse(JSON.parse(input.toString()))
-const renderMarkdownList = (items: string[]) => items.map(bin => `* ${bin}`).join('\n')
+
+const parse = <T>(schema: ZodSchema<T>, input: zx.ProcessOutput) => schema.parse(JSON.parse(input.stdout))
+const renderMarkdownList = (items: string[]) => items.map((bin) => `* ${bin}`).join("\n")
 
 const theCargoToml: CargoToml = parse(CargoToml, await $`yj -t < Cargo.toml`)
-const { package: { name, description, metadata: { details: { title } } } } = theCargoToml
+const { package: { name, metadata: { details: { title } } } } = theCargoToml
 const bin = name
 const help = await $`cargo run --quiet --bin ${bin} -- --help`
 const theCargoMetadata: CargoMetadata = parse(CargoMetadataSchema, await $`cargo metadata --format-version 1`)
-const thePackageMetadata = theCargoMetadata.packages.find(p => p.name == name)
-assert(thePackageMetadata, 'Could not find package metadata')
+const thePackageMetadata = theCargoMetadata.packages.find((p) => p.name == name)
+assert(thePackageMetadata, "Could not find package metadata")
 const target = thePackageMetadata.targets[0]
-assert(target, 'Could not find package first target')
+assert(target, "Could not find package first target")
 const doc = await $`cargo doc2readme --template README.jl --target-name ${target.name} --out -`
 const repo: Repo = parse(Repo, await $`gh repo view --json url`)
-const extraBins = (await $`find src/bin/*.rs -type f -exec basename {} .rs \\;`).valueOf().split('\n')
+const extraBins = (await $`find src/bin/*.rs -type f -exec basename {} .rs \\;`).valueOf().split("\n")
 
 assertEquals(repo.url, theCargoToml.package.repository)
 
@@ -90,7 +91,7 @@ ${help.stdout.trim()}
 
 ## Additional binaries
 
-${renderMarkdownList(extraBins.map(bin => `\`${bin}\``))}
+${renderMarkdownList(extraBins.map((bin) => `\`${bin}\``))}
 
 ## Gratitude
 
