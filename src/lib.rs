@@ -1,3 +1,33 @@
+//! # Overview
+//!
+//! `create-rust-github-repo` is a CLI program that creates a new repository on GitHub, clones it locally, initializes a Rust project, copies the configs from a pre-existing directory.
+//!
+//! # Examples
+//!
+//! ```shell,ignore
+//! # Create a GitHub repo & init a Rust project
+//! create-rust-github-repo --name my-new-project
+//!
+//! # Copy configs from existing project
+//! create-rust-github-repo --name my-new-project --copy-configs-from ~/workspace/my-existing-project
+//!
+//! # Clone to a specific directory
+//! create-rust-github-repo --name my-new-project --dir ~/workspace/my-new-project
+//!
+//! # Create a public repo
+//! create-rust-github-repo --name my-new-project --repo-create-cmd "gh repo create --public {{name}}"
+//!
+//! # Create a lib instead of bin
+//! create-rust-github-repo --name my-new-project --project-init-cmd "cargo init --lib"
+//! ```
+//!
+//! # Features
+//!
+//! * [x] Uses existing `gh`, `git`, `cargo` commands
+//! * [x] Supports overrides for all commands
+//! * [x] Supports substitutions (see help below)
+//! * [x] Can be used as a library
+
 use std::collections::HashMap;
 use std::env::current_dir;
 use std::ffi::OsStr;

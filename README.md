@@ -16,7 +16,7 @@
 ```shell
 # Create a GitHub repo & init a Rust project
 create-rust-github-repo --name my-new-project
- 
+
 # Copy configs from existing project
 create-rust-github-repo --name my-new-project --copy-configs-from ~/workspace/my-existing-project
 
