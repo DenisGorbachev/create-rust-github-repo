@@ -62,7 +62,7 @@ Options:
   -c, --copy-configs-from <COPY_CONFIGS_FROM>
           Source directory for configuration files
       --extra-configs <EXTRA_CONFIGS>
-          Extra config file paths (relative to `source` directory)
+          Extra config file paths (relative to resolved `dir`), separated by comma
       --repo-exists-cmd <REPO_EXISTS_CMD>
           Shell command to check if repo exists (supports substitutions - see help below) [default: "gh repo view --json nameWithOwner {{name}} 2>/dev/null"]
       --repo-create-cmd <REPO_CREATE_CMD>

@@ -76,7 +76,7 @@ pub struct CreateRustGithubRepo {
     #[arg(long, short, help = "Source directory for configuration files", value_parser = value_parser!(PathBuf))]
     copy_configs_from: Option<PathBuf>,
 
-    #[arg(long, help = "Extra config file paths (relative to `source` directory)", value_delimiter = ',')]
+    #[arg(long, help = "Extra config file paths (relative to resolved `dir`), separated by comma", value_delimiter = ',')]
     extra_configs: Vec<String>,
 
     #[arg(long, help = "Shell command to check if repo exists (supports substitutions - see help below)", default_value = "gh repo view --json nameWithOwner {{name}} 2>/dev/null")]
