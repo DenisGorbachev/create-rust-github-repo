@@ -18,7 +18,7 @@
 create-rust-github-repo --name my-new-project
 
 # Copy configs from existing project
-create-rust-github-repo --name my-new-project --copy-configs-from ~/workspace/my-existing-project
+create-rust-github-repo --name my-new-project --copy-configs-from ~/workspace/my-existing-project --configs .github,rustfmt.toml,clippy.toml
 
 # Clone to a specific directory
 create-rust-github-repo --name my-new-project --dir ~/workspace/my-new-project
@@ -60,9 +60,9 @@ Options:
       --shell-cmd <SHELL_CMD>
           Shell to use for executing commands [default: /bin/sh]
   -c, --copy-configs-from <COPY_CONFIGS_FROM>
-          Source directory for configuration files
-      --extra-configs <EXTRA_CONFIGS>
-          Extra config file paths (relative to resolved `dir`), separated by comma
+          Source directory for config paths
+      --configs <CONFIGS>
+          Config paths separated by comma (relative to `copy_configs_from`) (only applies if `copy_configs_from` is specified) (supports files and directories)
       --repo-exists-cmd <REPO_EXISTS_CMD>
           Shell command to check if repo exists (supports substitutions - see help below) [default: "gh repo view --json nameWithOwner {{name}} 2>/dev/null"]
       --repo-create-cmd <REPO_CREATE_CMD>
@@ -76,7 +76,7 @@ Options:
       --repo-add-args <REPO_ADD_ARGS>
           Shell command to add new files (supports substitutions - see help below) [default: "git add ."]
       --repo-commit-args <REPO_COMMIT_ARGS>
-          Shell command to make a commit (supports substitutions - see help below) [default: "git commit -m \"Add configs\""]
+          Shell command to make a commit (supports substitutions - see help below) [default: "git commit -m \"Setup project\""]
       --repo-push-args <REPO_PUSH_ARGS>
           Shell command to push the commit (supports substitutions - see help below) [default: "git push"]
   -h, --help

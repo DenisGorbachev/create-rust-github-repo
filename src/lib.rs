@@ -9,7 +9,7 @@
 //! create-rust-github-repo --name my-new-project
 //!
 //! # Copy configs from existing project
-//! create-rust-github-repo --name my-new-project --copy-configs-from ~/workspace/my-existing-project
+//! create-rust-github-repo --name my-new-project --copy-configs-from ~/workspace/my-existing-project --configs .github,rustfmt.toml,clippy.toml
 //!
 //! # Clone to a specific directory
 //! create-rust-github-repo --name my-new-project --dir ~/workspace/my-new-project
@@ -38,6 +38,8 @@ use std::process::{Command, ExitStatus};
 use anyhow::Context;
 use clap::{value_parser, Parser, ValueEnum};
 use derive_setters::Setters;
+use fs_extra::copy_items;
+use fs_extra::dir::CopyOptions;
 
 #[derive(ValueEnum, Default, Eq, PartialEq, Hash, Clone, Copy, Debug)]
 pub enum RepoVisibility {
@@ -73,11 +75,12 @@ pub struct CreateRustGithubRepo {
     #[arg(long, help = "Shell to use for executing commands", default_value = "/bin/sh")]
     shell_cmd: String,
 
-    #[arg(long, short, help = "Source directory for configuration files", value_parser = value_parser!(PathBuf))]
+    #[arg(long, short, help = "Source directory for config paths", value_parser = value_parser!(PathBuf))]
     copy_configs_from: Option<PathBuf>,
 
-    #[arg(long, help = "Extra config file paths (relative to resolved `dir`), separated by comma", value_delimiter = ',')]
-    extra_configs: Vec<String>,
+    /// Config paths separated by comma (relative to `copy_configs_from`) (only applies if `copy_configs_from` is specified) (supports files and directories)
+    #[arg(long, value_delimiter = ',')]
+    configs: Vec<String>,
 
     #[arg(long, help = "Shell command to check if repo exists (supports substitutions - see help below)", default_value = "gh repo view --json nameWithOwner {{name}} 2>/dev/null")]
     repo_exists_cmd: String,
@@ -97,7 +100,7 @@ pub struct CreateRustGithubRepo {
     #[arg(long, help = "Shell command to add new files (supports substitutions - see help below)", default_value = "git add .")]
     repo_add_args: String,
 
-    #[arg(long, help = "Shell command to make a commit (supports substitutions - see help below)", default_value = "git commit -m \"Add configs\"")]
+    #[arg(long, help = "Shell command to make a commit (supports substitutions - see help below)", default_value = "git commit -m \"Setup project\"")]
     repo_commit_args: String,
 
     #[arg(long, help = "Shell command to push the commit (supports substitutions - see help below)", default_value = "git push")]
@@ -142,11 +145,16 @@ impl CreateRustGithubRepo {
         }
 
         if let Some(copy_configs_from) = self.copy_configs_from {
-            let mut configs: Vec<String> = vec![];
-            configs.extend(CONFIGS.iter().copied().map(ToOwned::to_owned));
-            configs.extend(self.extra_configs);
-            // Copy config files
-            copy_configs_if_not_exists(&copy_configs_from, &dir, configs).context("Failed to copy configuration files")?;
+            let paths: Vec<PathBuf> = self
+                .configs
+                .iter()
+                .map(|config| copy_configs_from.join(config))
+                .collect();
+            let options = CopyOptions::new()
+                .skip_exist(true)
+                .copy_inside(true)
+                .buffer_size(MEGABYTE);
+            copy_items(&paths, &dir, &options).context("Failed to copy configuration files")?;
         }
 
         // test
@@ -178,33 +186,43 @@ pub fn replace_all(mut input: String, substitutions: &HashMap<&str, &str>) -> St
     input
 }
 
-pub fn exec(cmd: impl AsRef<OsStr>, args: impl IntoIterator<Item = impl AsRef<OsStr>>, extra_args: impl IntoIterator<Item = String>, current_dir: impl AsRef<Path>, substitutions: &HashMap<&str, &str>) -> io::Result<ExitStatus> {
+pub fn exec(cmd: impl AsRef<OsStr>, args: impl IntoIterator<Item = impl AsRef<OsStr>> + Clone, extra_args: impl IntoIterator<Item = String>, current_dir: impl AsRef<Path>, substitutions: &HashMap<&str, &str>) -> io::Result<ExitStatus> {
     let replacements = replace_args(extra_args, substitutions);
     let extra_args = replacements.iter().map(AsRef::<OsStr>::as_ref);
     exec_raw(cmd, args, extra_args, current_dir)
 }
 
-pub fn success(cmd: impl AsRef<OsStr>, args: impl IntoIterator<Item = impl AsRef<OsStr>>, extra_args: impl IntoIterator<Item = String>, current_dir: impl AsRef<Path>, substitutions: &HashMap<&str, &str>) -> io::Result<bool> {
+pub fn success(cmd: impl AsRef<OsStr>, args: impl IntoIterator<Item = impl AsRef<OsStr>> + Clone, extra_args: impl IntoIterator<Item = String>, current_dir: impl AsRef<Path>, substitutions: &HashMap<&str, &str>) -> io::Result<bool> {
     let replacements = replace_args(extra_args, substitutions);
     let extra_args = replacements.iter().map(AsRef::<OsStr>::as_ref);
     success_raw(cmd, args, extra_args, current_dir)
 }
 
-pub fn exec_raw(cmd: impl AsRef<OsStr>, args: impl IntoIterator<Item = impl AsRef<OsStr>>, extra_args: impl IntoIterator<Item = impl AsRef<OsStr>>, current_dir: impl AsRef<Path>) -> io::Result<ExitStatus> {
+pub fn exec_raw(cmd: impl AsRef<OsStr>, args: impl IntoIterator<Item = impl AsRef<OsStr>> + Clone, extra_args: impl IntoIterator<Item = impl AsRef<OsStr>>, current_dir: impl AsRef<Path>) -> io::Result<ExitStatus> {
     get_status_raw(cmd, args, extra_args, current_dir).and_then(check_status)
 }
 
-pub fn success_raw(cmd: impl AsRef<OsStr>, args: impl IntoIterator<Item = impl AsRef<OsStr>>, extra_args: impl IntoIterator<Item = impl AsRef<OsStr>>, current_dir: impl AsRef<Path>) -> io::Result<bool> {
+pub fn success_raw(cmd: impl AsRef<OsStr>, args: impl IntoIterator<Item = impl AsRef<OsStr>> + Clone, extra_args: impl IntoIterator<Item = impl AsRef<OsStr>>, current_dir: impl AsRef<Path>) -> io::Result<bool> {
     get_status_raw(cmd, args, extra_args, current_dir).map(|status| status.success())
 }
 
-pub fn get_status_raw(cmd: impl AsRef<OsStr>, args: impl IntoIterator<Item = impl AsRef<OsStr>>, extra_args: impl IntoIterator<Item = impl AsRef<OsStr>>, current_dir: impl AsRef<Path>) -> io::Result<ExitStatus> {
+pub fn get_status_raw(cmd: impl AsRef<OsStr>, args: impl IntoIterator<Item = impl AsRef<OsStr>> + Clone, extra_args: impl IntoIterator<Item = impl AsRef<OsStr>>, current_dir: impl AsRef<Path>) -> io::Result<ExitStatus> {
+    eprintln!("$ {}", cmd_to_string(cmd.as_ref(), args.clone()));
     Command::new(cmd)
         .args(args)
         .args(extra_args)
         .current_dir(current_dir)
         .spawn()?
         .wait()
+}
+
+fn cmd_to_string(cmd: impl AsRef<OsStr>, args: impl IntoIterator<Item = impl AsRef<OsStr>>) -> String {
+    let mut cmd_str = cmd.as_ref().to_string_lossy().to_string();
+    for arg in args {
+        cmd_str.push(' ');
+        cmd_str.push_str(arg.as_ref().to_string_lossy().as_ref());
+    }
+    cmd_str
 }
 
 pub fn check_status(status: ExitStatus) -> io::Result<ExitStatus> {
@@ -215,33 +233,10 @@ pub fn check_status(status: ExitStatus) -> io::Result<ExitStatus> {
     }
 }
 
-pub fn copy_configs_if_not_exists<P: Clone + AsRef<Path>>(source: &Path, target: &Path, configs: impl IntoIterator<Item = P>) -> io::Result<()> {
-    for config in configs {
-        let source_path = source.join(config.clone());
-        let target_path = target.join(config);
-        if source_path.exists() && !target_path.exists() {
-            fs_err::copy(&source_path, &target_path)?;
-        }
-    }
-    Ok(())
-}
-
-pub const CONFIGS: &[&str] = &[
-    "clippy.toml",
-    "rustfmt.toml",
-    "Justfile",
-    "lefthook.yml",
-    ".lefthook.yml",
-    "lefthook.yaml",
-    ".lefthook.yaml",
-    "lefthook.toml",
-    ".lefthook.toml",
-    "lefthook.json",
-    ".lefthook.json",
-];
-
 #[test]
 fn verify_cli() {
     use clap::CommandFactory;
     CreateRustGithubRepo::command().debug_assert();
 }
+
+const MEGABYTE: usize = 1048576;
