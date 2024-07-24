@@ -53,34 +53,81 @@ Usage: create-rust-github-repo [OPTIONS] --name <NAME>
 Options:
   -n, --name <NAME>
           Repository name
+
   -d, --dir <DIR>
           Target directory for cloning the repository (must include the repo name) (defaults to "{current_dir}/{repo_name}") (see also: --workspace)
+
   -w, --workspace <WORKSPACE>
           Parent of the target directory for cloning the repository (must NOT include the repo name). If this option is specified, then the repo is cloned to "{workspace}/{repo_name}". The --dir option overrides this option
+
       --shell-cmd <SHELL_CMD>
-          Shell to use for executing commands [default: /bin/sh]
+          Shell to use for executing commands
+          
+          [default: /bin/sh]
+
+      --shell-args <SHELL_ARGS>
+          Shell args to use for executing commands (note that '-c' is always passed as last arg)
+
   -c, --copy-configs-from <COPY_CONFIGS_FROM>
           Source directory for config paths
+
       --configs <CONFIGS>
           Config paths separated by comma (relative to `copy_configs_from`) (only applies if `copy_configs_from` is specified) (supports files and directories)
+
       --repo-exists-cmd <REPO_EXISTS_CMD>
-          Shell command to check if repo exists (supports substitutions - see help below) [default: "gh repo view --json nameWithOwner {{name}} 2>/dev/null"]
+          Shell command to check if repo exists (supports substitutions - see help below)
+          
+          [default: "gh repo view --json nameWithOwner {{name}} 2>/dev/null"]
+
       --repo-create-cmd <REPO_CREATE_CMD>
-          Shell command to create a repo (supports substitutions - see help below) [default: "gh repo create --private {{name}}"]
+          Shell command to create a repo (supports substitutions - see help below)
+          
+          [default: "gh repo create --private {{name}}"]
+
       --repo-clone-cmd <REPO_CLONE_CMD>
-          Shell command to clone a repo (supports substitutions - see help below) [default: "gh repo clone {{name}} {{dir}}"]
+          Shell command to clone a repo (supports substitutions - see help below)
+          
+          [default: "gh repo clone {{name}} {{dir}}"]
+
       --project-init-cmd <PROJECT_INIT_CMD>
-          Shell command to initialize a project (supports substitutions - see help below) [default: "cargo init"]
+          Shell command to initialize a project (supports substitutions - see help below)
+          
+          [default: "cargo init"]
+
       --project-test-cmd <PROJECT_TEST_CMD>
-          Shell command to test a project (supports substitutions - see help below) [default: "cargo test"]
+          Shell command to test a project (supports substitutions - see help below)
+          
+          [default: "cargo test"]
+
       --repo-add-args <REPO_ADD_ARGS>
-          Shell command to add new files (supports substitutions - see help below) [default: "git add ."]
+          Shell command to add new files (supports substitutions - see help below)
+          
+          [default: "git add ."]
+
       --repo-commit-args <REPO_COMMIT_ARGS>
-          Shell command to make a commit (supports substitutions - see help below) [default: "git commit -m \"Setup project\""]
+          Shell command to make a commit (supports substitutions - see help below)
+          
+          [default: "git commit -m \"Setup project\""]
+
       --repo-push-args <REPO_PUSH_ARGS>
-          Shell command to push the commit (supports substitutions - see help below) [default: "git push"]
+          Shell command to push the commit (supports substitutions - see help below)
+          
+          [default: "git push"]
+
+  -s, --support-link-probability <SUPPORT_LINK_PROBABILITY>
+          The probability of seeing a support link in a single execution of the command is `1 / {{this-field-value}}`.
+          
+          Set it to 0 to disable the support link.
+          
+          [env: SUPPORT_LINK_PROBABILITY=]
+          [default: 1]
+
+      --dry-run
+          Don't actually execute commands that modify the data, only print them (note that read-only commands will still be executed)
+
   -h, --help
-          Print help
+          Print help (see a summary with '-h')
+
   -V, --version
           Print version
 

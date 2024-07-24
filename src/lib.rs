@@ -29,37 +29,22 @@
 //! * [x] Can be used as a library
 
 use std::collections::HashMap;
-use std::env::current_dir;
-use std::ffi::OsStr;
+use std::env::{current_dir, current_exe};
+use std::ffi::{OsStr, OsString};
 use std::io;
+use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::process::{Command, ExitStatus};
+use std::time::{SystemTime, UNIX_EPOCH};
 
 use anyhow::Context;
-use clap::{value_parser, Parser, ValueEnum};
+use clap::{value_parser, Parser};
+use derive_new::new;
 use derive_setters::Setters;
 use fs_extra::copy_items;
 use fs_extra::dir::CopyOptions;
 
-#[derive(ValueEnum, Default, Eq, PartialEq, Hash, Clone, Copy, Debug)]
-pub enum RepoVisibility {
-    Public,
-    #[default]
-    Private,
-    Internal,
-}
-
-impl RepoVisibility {
-    pub fn to_gh_create_repo_flag(&self) -> &'static str {
-        match self {
-            RepoVisibility::Public => "--public",
-            RepoVisibility::Private => "--private",
-            RepoVisibility::Internal => "--internal",
-        }
-    }
-}
-
-#[derive(Parser, Setters, Debug)]
+#[derive(Parser, Setters, Default, Debug)]
 #[command(version, about, author, after_help = "All command arg options support the following substitutions:\n* {{name}} - substituted with --name arg\n* {{dir}} - substituted with resolved directory for repo (the resolved value of --dir)\n")]
 #[setters(into)]
 pub struct CreateRustGithubRepo {
@@ -73,7 +58,10 @@ pub struct CreateRustGithubRepo {
     workspace: Option<PathBuf>,
 
     #[arg(long, help = "Shell to use for executing commands", default_value = "/bin/sh")]
-    shell_cmd: String,
+    shell_cmd: OsString,
+
+    #[arg(long, help = "Shell args to use for executing commands (note that '-c' is always passed as last arg)")]
+    shell_args: Vec<OsString>,
 
     #[arg(long, short, help = "Source directory for config paths", value_parser = value_parser!(PathBuf))]
     copy_configs_from: Option<PathBuf>,
@@ -105,10 +93,20 @@ pub struct CreateRustGithubRepo {
 
     #[arg(long, help = "Shell command to push the commit (supports substitutions - see help below)", default_value = "git push")]
     repo_push_args: String,
+
+    /// The probability of seeing a support link in a single execution of the command is `1 / {{this-field-value}}`.
+    ///
+    /// Set it to 0 to disable the support link.
+    #[arg(long, short = 's', env, default_value_t = 1)]
+    support_link_probability: u64,
+
+    /// Don't actually execute commands that modify the data, only print them (note that read-only commands will still be executed)
+    #[arg(long)]
+    dry_run: bool,
 }
 
 impl CreateRustGithubRepo {
-    pub fn run(self) -> anyhow::Result<()> {
+    pub fn run(self, stdout: &mut impl Write, stderr: &mut impl Write, now: Option<u64>) -> anyhow::Result<()> {
         let current_dir = current_dir()?;
         let dir = self
             .dir
@@ -121,56 +119,206 @@ impl CreateRustGithubRepo {
             ("{{dir}}", dir_string.as_str()),
         ]);
 
-        let repo_exists = success(&self.shell_cmd, ["-c"], [self.repo_exists_cmd], &current_dir, &substitutions)?;
+        let shell = Shell::new(self.shell_cmd, self.shell_args);
+        let executor = Executor::new(shell, self.dry_run);
+
+        let repo_exists = executor
+            .is_success(replace_all(self.repo_exists_cmd, &substitutions), &current_dir, stderr)
+            .context("Failed to find out if repository exists")?;
 
         if !repo_exists {
             // Create a GitHub repo
-            exec(&self.shell_cmd, ["-c"], [self.repo_create_cmd], &current_dir, &substitutions).context("Failed to create repository")?;
+            executor
+                .exec(replace_all(self.repo_create_cmd, &substitutions), &current_dir, stderr)
+                .context("Failed to create repository")?;
         }
 
         if !dir.exists() {
             // Clone the repo
-            exec(&self.shell_cmd, ["-c"], [self.repo_clone_cmd], &current_dir, &substitutions).context("Failed to clone repository")?;
+            executor
+                .exec(replace_all(self.repo_clone_cmd, &substitutions), &current_dir, stderr)
+                .context("Failed to clone repository")?;
         } else {
-            println!("Directory \"{}\" exists, skipping clone command", dir.display())
+            writeln!(stdout, "Directory \"{}\" exists, skipping clone command", dir.display())?;
         }
 
         let cargo_toml = dir.join("Cargo.toml");
 
         if !cargo_toml.exists() {
             // Run cargo init
-            exec(&self.shell_cmd, ["-c"], [self.project_init_cmd], &dir, &substitutions).context("Failed to initialize the project")?;
+            executor
+                .exec(replace_all(self.project_init_cmd, &substitutions), &dir, stderr)
+                .context("Failed to initialize the project")?;
         } else {
-            println!("Cargo.toml exists in \"{}\", skipping `cargo init` command", dir.display())
+            writeln!(stdout, "Cargo.toml exists in \"{}\", skipping `cargo init` command", dir.display())?;
         }
 
         if let Some(copy_configs_from) = self.copy_configs_from {
             let paths: Vec<PathBuf> = self
                 .configs
                 .iter()
+                .filter(|s| !s.is_empty())
                 .map(|config| copy_configs_from.join(config))
                 .collect();
-            let options = CopyOptions::new()
-                .skip_exist(true)
-                .copy_inside(true)
-                .buffer_size(MEGABYTE);
-            copy_items(&paths, &dir, &options).context("Failed to copy configuration files")?;
+
+            for path in &paths {
+                writeln!(stderr, "[INFO] Copying {}", path.display())?
+            }
+
+            if !self.dry_run {
+                let options = CopyOptions::new()
+                    .skip_exist(true)
+                    .copy_inside(true)
+                    .buffer_size(MEGABYTE);
+                copy_items(&paths, &dir, &options).context("Failed to copy configuration files")?;
+            }
         }
 
         // test
-        exec(&self.shell_cmd, ["-c"], [self.project_test_cmd], &dir, &substitutions).context("Failed to test the project")?;
+        executor
+            .exec(replace_all(self.project_test_cmd, &substitutions), &dir, stderr)
+            .context("Failed to test the project")?;
 
         // add
-        exec(&self.shell_cmd, ["-c"], [self.repo_add_args], &dir, &substitutions).context("Failed to add files for commit")?;
+        executor
+            .exec(replace_all(self.repo_add_args, &substitutions), &dir, stderr)
+            .context("Failed to add files for commit")?;
 
         // commit
-        exec(&self.shell_cmd, ["-c"], [self.repo_commit_args], &dir, &substitutions).context("Failed to commit changes")?;
+        executor
+            .exec(replace_all(self.repo_commit_args, &substitutions), &dir, stderr)
+            .context("Failed to commit changes")?;
 
         // push
-        exec(&self.shell_cmd, ["-c"], [self.repo_push_args], &dir, &substitutions).context("Failed to push changes")?;
+        executor
+            .exec(replace_all(self.repo_push_args, &substitutions), &dir, stderr)
+            .context("Failed to push changes")?;
+
+        let timestamp = now.unwrap_or_else(get_unix_timestamp_or_zero);
+
+        if self.support_link_probability != 0 && timestamp % self.support_link_probability == 0 {
+            if let Some(new_issue_url) = get_new_issue_url(CARGO_PKG_REPOSITORY) {
+                let exe_name = get_current_exe_name()
+                    .and_then(|name| name.into_string().ok())
+                    .unwrap_or_else(|| String::from("this program"));
+                let option_name = get_option_name_from_field_name(SUPPORT_LINK_FIELD_NAME);
+                let thank_you = format!("Thank you for using {exe_name}!");
+                let can_we_make_it_better = "Can we make it better for you?";
+                let open_issue = format!("Open an issue at {new_issue_url}");
+                let newline = "";
+                display_message_box(
+                    &[
+                        newline,
+                        &thank_you,
+                        newline,
+                        can_we_make_it_better,
+                        &open_issue,
+                        newline,
+                    ],
+                    stderr,
+                )?;
+                writeln!(stderr, "The message above can be disabled with {option_name} option")?;
+            }
+        }
 
         Ok(())
     }
+}
+
+fn display_message_box(lines: &[&str], writer: &mut impl Write) -> io::Result<()> {
+    if lines.is_empty() {
+        return Ok(());
+    }
+
+    let width = lines.iter().map(|s| s.len()).max().unwrap_or(0) + 4;
+    let border = "+".repeat(width);
+
+    writeln!(writer, "{}", border)?;
+
+    for message in lines {
+        let padding = width - message.len() - 4;
+        writeln!(writer, "+ {}{} +", message, " ".repeat(padding))?;
+    }
+
+    writeln!(writer, "{}", border)?;
+    Ok(())
+}
+
+/// This function may return 0 on error
+fn get_unix_timestamp_or_zero() -> u64 {
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_secs()
+}
+
+#[derive(new, Eq, PartialEq, Clone, Debug)]
+pub struct Shell {
+    cmd: OsString,
+    args: Vec<OsString>,
+}
+
+impl Shell {
+    pub fn spawn_and_wait(&self, command: impl AsRef<OsStr>, current_dir: impl AsRef<Path>) -> io::Result<ExitStatus> {
+        Command::new(&self.cmd)
+            .args(&self.args)
+            .arg("-c")
+            .arg(command)
+            .current_dir(current_dir)
+            .spawn()?
+            .wait()
+    }
+
+    pub fn exec(&self, command: impl AsRef<OsStr>, current_dir: impl AsRef<Path>) -> io::Result<ExitStatus> {
+        self.spawn_and_wait(command, current_dir)
+            .and_then(check_status)
+    }
+
+    pub fn is_success(&self, command: impl AsRef<OsStr>, current_dir: impl AsRef<Path>) -> io::Result<bool> {
+        self.spawn_and_wait(command, current_dir)
+            .map(|status| status.success())
+    }
+}
+
+#[derive(new, Eq, PartialEq, Clone, Debug)]
+pub struct Executor {
+    shell: Shell,
+    dry_run: bool,
+}
+
+impl Executor {
+    pub fn exec(&self, command: impl AsRef<OsStr>, current_dir: impl AsRef<Path>, stderr: &mut impl Write) -> io::Result<Option<ExitStatus>> {
+        writeln!(stderr, "$ {}", command.as_ref().to_string_lossy())?;
+        if self.dry_run {
+            Ok(None)
+        } else {
+            self.shell.exec(command, current_dir).map(Some)
+        }
+    }
+
+    pub fn is_success(&self, command: impl AsRef<OsStr>, current_dir: impl AsRef<Path>, stderr: &mut impl Write) -> io::Result<bool> {
+        writeln!(stderr, "$ {}", command.as_ref().to_string_lossy())?;
+        self.shell.is_success(command, current_dir)
+    }
+}
+
+fn get_new_issue_url(repo_url: &str) -> Option<String> {
+    if repo_url.starts_with("https://github.com/") {
+        Some(repo_url.to_string() + "/issues/new")
+    } else {
+        None
+    }
+}
+
+fn get_option_name_from_field_name(field_name: &str) -> String {
+    let field_name = field_name.replace('_', "-");
+    format!("--{}", field_name)
+}
+
+fn get_current_exe_name() -> Option<OsString> {
+    current_exe()
+        .map(|exe| exe.file_name().map(OsStr::to_owned))
+        .unwrap_or_default()
 }
 
 pub fn replace_args(args: impl IntoIterator<Item = String>, substitutions: &HashMap<&str, &str>) -> Vec<String> {
@@ -186,46 +334,16 @@ pub fn replace_all(mut input: String, substitutions: &HashMap<&str, &str>) -> St
     input
 }
 
-pub fn exec(cmd: impl AsRef<OsStr>, args: impl IntoIterator<Item = impl AsRef<OsStr>> + Clone, extra_args: impl IntoIterator<Item = String>, current_dir: impl AsRef<Path>, substitutions: &HashMap<&str, &str>) -> io::Result<ExitStatus> {
-    let replacements = replace_args(extra_args, substitutions);
-    let extra_args = replacements.iter().map(AsRef::<OsStr>::as_ref);
-    exec_raw(cmd, args, extra_args, current_dir)
-}
+// fn cmd_to_string(cmd: impl AsRef<OsStr>, args: impl IntoIterator<Item = impl AsRef<OsStr>>) -> String {
+//     let mut cmd_str = cmd.as_ref().to_string_lossy().to_string();
+//     for arg in args {
+//         cmd_str.push(' ');
+//         cmd_str.push_str(arg.as_ref().to_string_lossy().as_ref());
+//     }
+//     cmd_str
+// }
 
-pub fn success(cmd: impl AsRef<OsStr>, args: impl IntoIterator<Item = impl AsRef<OsStr>> + Clone, extra_args: impl IntoIterator<Item = String>, current_dir: impl AsRef<Path>, substitutions: &HashMap<&str, &str>) -> io::Result<bool> {
-    let replacements = replace_args(extra_args, substitutions);
-    let extra_args = replacements.iter().map(AsRef::<OsStr>::as_ref);
-    success_raw(cmd, args, extra_args, current_dir)
-}
-
-pub fn exec_raw(cmd: impl AsRef<OsStr>, args: impl IntoIterator<Item = impl AsRef<OsStr>> + Clone, extra_args: impl IntoIterator<Item = impl AsRef<OsStr>>, current_dir: impl AsRef<Path>) -> io::Result<ExitStatus> {
-    get_status_raw(cmd, args, extra_args, current_dir).and_then(check_status)
-}
-
-pub fn success_raw(cmd: impl AsRef<OsStr>, args: impl IntoIterator<Item = impl AsRef<OsStr>> + Clone, extra_args: impl IntoIterator<Item = impl AsRef<OsStr>>, current_dir: impl AsRef<Path>) -> io::Result<bool> {
-    get_status_raw(cmd, args, extra_args, current_dir).map(|status| status.success())
-}
-
-pub fn get_status_raw(cmd: impl AsRef<OsStr>, args: impl IntoIterator<Item = impl AsRef<OsStr>> + Clone, extra_args: impl IntoIterator<Item = impl AsRef<OsStr>>, current_dir: impl AsRef<Path>) -> io::Result<ExitStatus> {
-    eprintln!("$ {}", cmd_to_string(cmd.as_ref(), args.clone()));
-    Command::new(cmd)
-        .args(args)
-        .args(extra_args)
-        .current_dir(current_dir)
-        .spawn()?
-        .wait()
-}
-
-fn cmd_to_string(cmd: impl AsRef<OsStr>, args: impl IntoIterator<Item = impl AsRef<OsStr>>) -> String {
-    let mut cmd_str = cmd.as_ref().to_string_lossy().to_string();
-    for arg in args {
-        cmd_str.push(' ');
-        cmd_str.push_str(arg.as_ref().to_string_lossy().as_ref());
-    }
-    cmd_str
-}
-
-pub fn check_status(status: ExitStatus) -> io::Result<ExitStatus> {
+fn check_status(status: ExitStatus) -> io::Result<ExitStatus> {
     if status.success() {
         Ok(status)
     } else {
@@ -233,10 +351,51 @@ pub fn check_status(status: ExitStatus) -> io::Result<ExitStatus> {
     }
 }
 
-#[test]
-fn verify_cli() {
-    use clap::CommandFactory;
-    CreateRustGithubRepo::command().debug_assert();
-}
-
+const CARGO_PKG_REPOSITORY: &str = env!("CARGO_PKG_REPOSITORY");
+const SUPPORT_LINK_FIELD_NAME: &str = "support_link_probability";
 const MEGABYTE: usize = 1048576;
+
+#[cfg(test)]
+mod tests {
+    use std::io::Cursor;
+
+    use super::*;
+
+    #[test]
+    fn verify_cli() {
+        use clap::CommandFactory;
+        CreateRustGithubRepo::command().debug_assert();
+    }
+
+    #[cfg(test)]
+    macro_rules! test_support_link_probability_name {
+        ($field:ident) => {
+            let cmd = CreateRustGithubRepo::default();
+            cmd.$field(0u64);
+            assert_eq!(stringify!($field), SUPPORT_LINK_FIELD_NAME);
+        };
+    }
+
+    #[test]
+    fn test_support_link_probability_name() {
+        test_support_link_probability_name!(support_link_probability);
+    }
+
+    #[test]
+    fn test_support_link() {
+        let mut stdout = Cursor::new(Vec::new());
+        let mut stderr = Cursor::new(Vec::new());
+        let cmd = get_dry_cmd().support_link_probability(1u64);
+        cmd.run(&mut stdout, &mut stderr, Some(0)).unwrap();
+        let stderr_string = String::from_utf8(stderr.into_inner()).unwrap();
+        assert!(stderr_string.contains("Open an issue"))
+    }
+
+    fn get_dry_cmd() -> CreateRustGithubRepo {
+        CreateRustGithubRepo::default()
+            .name("test")
+            .shell_cmd("/bin/sh")
+            .repo_exists_cmd("echo")
+            .dry_run(true)
+    }
+}
