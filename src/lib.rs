@@ -88,7 +88,7 @@ pub struct CreateRustGithubRepo {
     #[arg(long, help = "Shell command to add new files (supports substitutions - see help below)", default_value = "git add .")]
     repo_add_args: String,
 
-    #[arg(long, help = "Shell command to make a commit (supports substitutions - see help below)", default_value = "git commit -m \"Setup project\"")]
+    #[arg(long, help = "Shell command to make a commit (supports substitutions - see help below)", default_value = "git commit -m \"feat: setup project\"")]
     repo_commit_args: String,
 
     #[arg(long, help = "Shell command to push the commit (supports substitutions - see help below)", default_value = "git push")]

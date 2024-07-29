@@ -107,7 +107,7 @@ Options:
       --repo-commit-args <REPO_COMMIT_ARGS>
           Shell command to make a commit (supports substitutions - see help below)
           
-          [default: "git commit -m \"Setup project\""]
+          [default: "git commit -m \"feat: setup project\""]
 
       --repo-push-args <REPO_PUSH_ARGS>
           Shell command to push the commit (supports substitutions - see help below)
