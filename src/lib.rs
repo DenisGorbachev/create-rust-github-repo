@@ -31,18 +31,18 @@
 use std::collections::HashMap;
 use std::env::{current_dir, current_exe};
 use std::ffi::{OsStr, OsString};
+use std::fs::create_dir_all;
 use std::io;
 use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::process::{Command, ExitStatus};
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use anyhow::Context;
+use anyhow::{anyhow, Context};
 use clap::{value_parser, Parser};
 use derive_new::new;
 use derive_setters::Setters;
-use fs_extra::copy_items;
-use fs_extra::dir::CopyOptions;
+use fs_extra::{dir, file};
 
 #[derive(Parser, Setters, Default, Debug)]
 #[command(version, about, author, after_help = "All command arg options support the following substitutions:\n* {{name}} - substituted with --name arg\n* {{dir}} - substituted with resolved directory for repo (the resolved value of --dir)\n")]
@@ -154,23 +154,37 @@ impl CreateRustGithubRepo {
         }
 
         if let Some(copy_configs_from) = self.copy_configs_from {
-            let paths: Vec<PathBuf> = self
-                .configs
-                .iter()
-                .filter(|s| !s.is_empty())
-                .map(|config| copy_configs_from.join(config))
-                .collect();
+            let non_empty_configs = self.configs.iter().filter(|s| !s.is_empty());
 
-            for path in &paths {
-                writeln!(stderr, "[INFO] Copying {}", path.display())?
-            }
+            for config in non_empty_configs {
+                let source = copy_configs_from.join(config);
+                let target = dir.join(config);
 
-            if !self.dry_run {
-                let options = CopyOptions::new()
-                    .skip_exist(true)
-                    .copy_inside(true)
-                    .buffer_size(MEGABYTE);
-                copy_items(&paths, &dir, &options).context("Failed to copy configuration files")?;
+                if !self.dry_run {
+                    if source.exists() && !target.exists() {
+                        writeln!(stderr, "[INFO] Copying {} to {}", source.display(), target.display())?;
+                        let parent = target
+                            .parent()
+                            .ok_or(anyhow!("Could not find parent of {}", source.display()))?;
+                        create_dir_all(parent)?;
+                        if source.is_file() {
+                            let options = file::CopyOptions::new()
+                                .skip_exist(true)
+                                .buffer_size(MEGABYTE);
+                            file::copy(&source, &target, &options)?;
+                        } else {
+                            let options = dir::CopyOptions::new()
+                                .skip_exist(true)
+                                .copy_inside(true)
+                                .buffer_size(MEGABYTE);
+                            dir::copy(&source, &target, &options)?;
+                        }
+                    } else {
+                        writeln!(stderr, "[INFO] Skipping {} because {} exists", source.display(), target.display())?;
+                    }
+                } else {
+                    writeln!(stderr, "[INFO] Would copy {} to {}", source.display(), target.display())?;
+                }
             }
         }
 
