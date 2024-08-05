@@ -23,10 +23,10 @@
 //!
 //! # Features
 //!
-//! * [x] Uses existing `gh`, `git`, `cargo` commands
-//! * [x] Supports overrides for all commands
-//! * [x] Supports substitutions (see help below)
-//! * [x] Can be used as a library
+//! * ✅ Uses existing `gh`, `git`, `cargo` commands
+//! * ✅ Supports overrides for all commands
+//! * ✅ Supports substitutions (see help below)
+//! * ✅ Can be used as a library
 
 use std::collections::HashMap;
 use std::env::{current_dir, current_exe};
