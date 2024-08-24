@@ -40,7 +40,7 @@ create-rust-github-repo --name my-new-project --project-init-cmd "cargo init --l
 ## Installation
 
 ```shell
-cargo install create-rust-github-repo
+cargo install --locked create-rust-github-repo
 ```
 
 ## Usage

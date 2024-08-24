@@ -1,8 +1,8 @@
 [package]
 name = "create-rust-github-repo"
-description = "`create-rust-github-repo` is a CLI program that creates a new repository on GitHub, clones it locally, initializes a Rust project, copies the configs from a pre-existing directory."
 version = "0.5.3"
 edition = "2021"
+description = "`create-rust-github-repo` is a CLI program that creates a new repository on GitHub, clones it locally, initializes a Rust project, copies the configs from a pre-existing directory."
 license = "Apache-2.0 OR MIT"
 homepage = "https://github.com/DenisGorbachev/create-rust-github-repo"
 repository = "https://github.com/DenisGorbachev/create-rust-github-repo"
@@ -19,6 +19,6 @@ announcement = ""
 [dependencies]
 anyhow = "1.0.86"
 clap = { version = "4.3.24", features = ["derive", "env"] }
-derive_setters = "0.1.6"
 derive-new = "0.6.0"
+derive_setters = "0.1.6"
 fs_extra = "1.3.0"

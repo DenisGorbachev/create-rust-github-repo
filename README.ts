@@ -80,7 +80,7 @@ ${doc.stdout.trim()}
 ## Installation
 
 \`\`\`shell
-cargo install ${name}
+cargo install --locked ${name}
 \`\`\`
 
 ## Usage
