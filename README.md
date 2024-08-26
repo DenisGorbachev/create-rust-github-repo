@@ -143,6 +143,7 @@ All command arg options support the following substitutions:
 * `create-rust-github-public-bin`
 * `create-rust-github-public-lib`
 * `create-rust-keybase-private-bin`
+* `create-rust-keybase-private-lib`
 
 ## Gratitude
 

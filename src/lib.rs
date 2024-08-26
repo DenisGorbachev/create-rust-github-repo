@@ -365,6 +365,13 @@ fn check_status(status: ExitStatus) -> io::Result<ExitStatus> {
     }
 }
 
+pub fn set_keybase_defaults(create_repo: CreateRustGithubRepo) -> CreateRustGithubRepo {
+    create_repo
+        .repo_exists_cmd("keybase git list | grep \" {{name}} \"")
+        .repo_create_cmd("keybase git create {{name}}")
+        .repo_clone_cmd("git clone $(keybase git list | grep \" {{name}} \" | awk '{print $2}') {{dir}}")
+}
+
 const CARGO_PKG_REPOSITORY: &str = env!("CARGO_PKG_REPOSITORY");
 const SUPPORT_LINK_FIELD_NAME: &str = "support_link_probability";
 const MEGABYTE: usize = 1048576;
