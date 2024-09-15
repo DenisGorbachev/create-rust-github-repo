@@ -286,13 +286,13 @@ pub struct Shell {
 
 impl Shell {
     pub async fn spawn_and_wait(&self, command: impl AsRef<OsStr>, current_dir: impl AsRef<Path>) -> io::Result<ExitStatus> {
-        let mut child = Command::new(&self.cmd)
+        Command::new(&self.cmd)
             .args(&self.args)
             .arg("-c")
             .arg(command)
             .current_dir(current_dir)
-            .spawn()?;
-        child.wait().await
+            .spawn()?
+            .wait()
     }
 
     pub async fn exec(&self, command: impl AsRef<OsStr>, current_dir: impl AsRef<Path>) -> io::Result<ExitStatus> {
@@ -320,13 +320,13 @@ impl Executor {
         if self.dry_run {
             Ok(None)
         } else {
-            self.shell.exec(command, current_dir).map(Some)
+            self.shell.exec(command, current_dir).await.map(Some)
         }
     }
 
     pub async fn is_success(&self, command: impl AsRef<OsStr>, current_dir: impl AsRef<Path>, stderr: &mut impl Write) -> io::Result<bool> {
         writeln!(stderr, "$ {}", command.as_ref().to_string_lossy())?;
-        self.shell.is_success(command, current_dir)
+        self.shell.is_success(command, current_dir).await
     }
 }
 
@@ -395,7 +395,7 @@ static _POSTHOG_API_KEY: LazyLock<String> = LazyLock::new(|| {
     String::from_utf8(vec![
         112, 104, 99, 95, 111, 86, 117, 105, 97, 50, 73, 111, 119, 90, 121, 116, 99, 77, 84, 81, 110, 55, 108, 81, 86, 87, 103, 87, 89, 80, 117, 49, 99, 107, 100, 112, 106, 52, 51, 68, 110, 74, 55, 84, 97, 109, 74,
     ])
-    .unwrap()
+        .unwrap()
 });
 
 #[cfg(test)]
@@ -429,7 +429,7 @@ mod tests {
         let mut stdout = Cursor::new(Vec::new());
         let mut stderr = Cursor::new(Vec::new());
         let cmd = get_dry_cmd().support_link_probability(1u64);
-        cmd.run(&mut stdout, &mut stderr, Some(0)).unwrap();
+        cmd.run(&mut stdout, &mut stderr, Some(0)).await.unwrap();
         let stderr_string = String::from_utf8(stderr.into_inner()).unwrap();
         assert!(stderr_string.contains("Open an issue"))
     }
