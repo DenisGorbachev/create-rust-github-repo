@@ -128,6 +128,7 @@ impl CreateRustGithubRepo {
 
         let repo_exists = executor
             .is_success(replace_all(self.repo_exists_cmd, &substitutions), &current_dir, stderr)
+            .await
             .context("Failed to find out if repository exists")?;
 
         if !repo_exists {
@@ -284,23 +285,25 @@ pub struct Shell {
 }
 
 impl Shell {
-    pub fn spawn_and_wait(&self, command: impl AsRef<OsStr>, current_dir: impl AsRef<Path>) -> io::Result<ExitStatus> {
-        Command::new(&self.cmd)
+    pub async fn spawn_and_wait(&self, command: impl AsRef<OsStr>, current_dir: impl AsRef<Path>) -> io::Result<ExitStatus> {
+        let mut child = Command::new(&self.cmd)
             .args(&self.args)
             .arg("-c")
             .arg(command)
             .current_dir(current_dir)
-            .spawn()?
-            .wait()
+            .spawn()?;
+        child.wait().await
     }
 
-    pub fn exec(&self, command: impl AsRef<OsStr>, current_dir: impl AsRef<Path>) -> io::Result<ExitStatus> {
+    pub async fn exec(&self, command: impl AsRef<OsStr>, current_dir: impl AsRef<Path>) -> io::Result<ExitStatus> {
         self.spawn_and_wait(command, current_dir)
+            .await
             .and_then(check_status)
     }
 
-    pub fn is_success(&self, command: impl AsRef<OsStr>, current_dir: impl AsRef<Path>) -> io::Result<bool> {
+    pub async fn is_success(&self, command: impl AsRef<OsStr>, current_dir: impl AsRef<Path>) -> io::Result<bool> {
         self.spawn_and_wait(command, current_dir)
+            .await
             .map(|status| status.success())
     }
 }
@@ -317,13 +320,13 @@ impl Executor {
         if self.dry_run {
             Ok(None)
         } else {
-            self.shell.exec(command, current_dir).await.map(Some)
+            self.shell.exec(command, current_dir).map(Some)
         }
     }
 
     pub async fn is_success(&self, command: impl AsRef<OsStr>, current_dir: impl AsRef<Path>, stderr: &mut impl Write) -> io::Result<bool> {
         writeln!(stderr, "$ {}", command.as_ref().to_string_lossy())?;
-        self.shell.is_success(command, current_dir).await
+        self.shell.is_success(command, current_dir)
     }
 }
 
