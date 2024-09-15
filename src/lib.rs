@@ -36,7 +36,7 @@ use std::fs::create_dir_all;
 use std::io;
 use std::io::Write;
 use std::path::{Path, PathBuf};
-use std::process::{Command, ExitStatus};
+use tokio::process::{Command, Child, ExitStatus};
 use std::sync::LazyLock;
 use std::time::{SystemTime, UNIX_EPOCH};
 
@@ -293,6 +293,7 @@ impl Shell {
             .current_dir(current_dir)
             .spawn()?
             .wait()
+            .await
     }
 
     pub async fn exec(&self, command: impl AsRef<OsStr>, current_dir: impl AsRef<Path>) -> io::Result<ExitStatus> {
