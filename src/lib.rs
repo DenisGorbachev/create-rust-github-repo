@@ -28,6 +28,7 @@
 //! * ✅ Supports substitutions (see help below)
 //! * ✅ Can be used as a library
 
+use std::borrow::ToOwned;
 use std::collections::HashMap;
 use std::env::{current_dir, current_exe};
 use std::ffi::{OsStr, OsString};
@@ -36,6 +37,7 @@ use std::io;
 use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::process::{Command, ExitStatus};
+use std::sync::LazyLock;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use anyhow::{anyhow, Context};
@@ -107,6 +109,8 @@ pub struct CreateRustGithubRepo {
 
 impl CreateRustGithubRepo {
     pub fn run(self, stdout: &mut impl Write, stderr: &mut impl Write, now: Option<u64>) -> anyhow::Result<()> {
+        // let client = posthog_rs::client(env!("phc_oVuia2IowZytcMTQn7lQVWgWYPu1ckdpj43DnJ7TamJ"));
+
         let current_dir = current_dir()?;
         let dir = self
             .dir
@@ -375,6 +379,14 @@ pub fn set_keybase_defaults(create_repo: CreateRustGithubRepo) -> CreateRustGith
 const CARGO_PKG_REPOSITORY: &str = env!("CARGO_PKG_REPOSITORY");
 const SUPPORT_LINK_FIELD_NAME: &str = "support_link_probability";
 const MEGABYTE: usize = 1048576;
+
+#[doc(hidden)]
+static _POSTHOG_API_KEY: LazyLock<String> = LazyLock::new(|| {
+    String::from_utf8(vec![
+        112, 104, 99, 95, 111, 86, 117, 105, 97, 50, 73, 111, 119, 90, 121, 116, 99, 77, 84, 81, 110, 55, 108, 81, 86, 87, 103, 87, 89, 80, 117, 49, 99, 107, 100, 112, 106, 52, 51, 68, 110, 74, 55, 84, 97, 109, 74,
+    ])
+    .unwrap()
+});
 
 #[cfg(test)]
 mod tests {
