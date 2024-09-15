@@ -424,8 +424,8 @@ mod tests {
         test_support_link_probability_name!(support_link_probability);
     }
 
-    #[test]
-    fn test_support_link() {
+    #[tokio::test]
+    async fn test_support_link() {
         let mut stdout = Cursor::new(Vec::new());
         let mut stderr = Cursor::new(Vec::new());
         let cmd = get_dry_cmd().support_link_probability(1u64);
