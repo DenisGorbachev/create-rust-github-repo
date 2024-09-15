@@ -108,7 +108,7 @@ pub struct CreateRustGithubRepo {
 }
 
 impl CreateRustGithubRepo {
-    pub fn run(self, stdout: &mut impl Write, stderr: &mut impl Write, now: Option<u64>) -> anyhow::Result<()> {
+    pub async fn run(self, stdout: &mut impl Write, stderr: &mut impl Write, now: Option<u64>) -> anyhow::Result<()> {
         // let client = posthog_rs::client(env!("phc_oVuia2IowZytcMTQn7lQVWgWYPu1ckdpj43DnJ7TamJ"));
 
         let current_dir = current_dir()?;
@@ -134,6 +134,7 @@ impl CreateRustGithubRepo {
             // Create a GitHub repo
             executor
                 .exec(replace_all(self.repo_create_cmd, &substitutions), &current_dir, stderr)
+                .await
                 .context("Failed to create repository")?;
         }
 
@@ -141,6 +142,7 @@ impl CreateRustGithubRepo {
             // Clone the repo
             executor
                 .exec(replace_all(self.repo_clone_cmd, &substitutions), &current_dir, stderr)
+                .await
                 .context("Failed to clone repository")?;
         } else {
             writeln!(stdout, "Directory \"{}\" exists, skipping clone command", dir.display())?;
@@ -152,6 +154,7 @@ impl CreateRustGithubRepo {
             // Run cargo init
             executor
                 .exec(replace_all(self.project_init_cmd, &substitutions), &dir, stderr)
+                .await
                 .context("Failed to initialize the project")?;
         } else {
             writeln!(stdout, "Cargo.toml exists in \"{}\", skipping `cargo init` command", dir.display())?;
@@ -195,21 +198,25 @@ impl CreateRustGithubRepo {
         // test
         executor
             .exec(replace_all(self.project_test_cmd, &substitutions), &dir, stderr)
+            .await
             .context("Failed to test the project")?;
 
         // add
         executor
             .exec(replace_all(self.repo_add_args, &substitutions), &dir, stderr)
+            .await
             .context("Failed to add files for commit")?;
 
         // commit
         executor
             .exec(replace_all(self.repo_commit_args, &substitutions), &dir, stderr)
+            .await
             .context("Failed to commit changes")?;
 
         // push
         executor
             .exec(replace_all(self.repo_push_args, &substitutions), &dir, stderr)
+            .await
             .context("Failed to push changes")?;
 
         let timestamp = now.unwrap_or_else(get_unix_timestamp_or_zero);
@@ -305,18 +312,18 @@ pub struct Executor {
 }
 
 impl Executor {
-    pub fn exec(&self, command: impl AsRef<OsStr>, current_dir: impl AsRef<Path>, stderr: &mut impl Write) -> io::Result<Option<ExitStatus>> {
+    pub async fn exec(&self, command: impl AsRef<OsStr>, current_dir: impl AsRef<Path>, stderr: &mut impl Write) -> io::Result<Option<ExitStatus>> {
         writeln!(stderr, "$ {}", command.as_ref().to_string_lossy())?;
         if self.dry_run {
             Ok(None)
         } else {
-            self.shell.exec(command, current_dir).map(Some)
+            self.shell.exec(command, current_dir).await.map(Some)
         }
     }
 
-    pub fn is_success(&self, command: impl AsRef<OsStr>, current_dir: impl AsRef<Path>, stderr: &mut impl Write) -> io::Result<bool> {
+    pub async fn is_success(&self, command: impl AsRef<OsStr>, current_dir: impl AsRef<Path>, stderr: &mut impl Write) -> io::Result<bool> {
         writeln!(stderr, "$ {}", command.as_ref().to_string_lossy())?;
-        self.shell.is_success(command, current_dir)
+        self.shell.is_success(command, current_dir).await
     }
 }
 
