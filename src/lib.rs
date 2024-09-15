@@ -36,7 +36,8 @@ use std::fs::create_dir_all;
 use std::io;
 use std::io::Write;
 use std::path::{Path, PathBuf};
-use tokio::process::{Command, Child, ExitStatus};
+use tokio::process::Command;
+use std::process::ExitStatus;
 use std::sync::LazyLock;
 use std::time::{SystemTime, UNIX_EPOCH};
 
