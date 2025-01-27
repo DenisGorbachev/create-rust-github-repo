@@ -7,6 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.5](https://github.com/DenisGorbachev/create-rust-github-repo/compare/v0.5.4...v0.5.5) - 2025-01-27
+
+### Added
+
+- after_all_cmd
+- make test_support_link async
+- add hedgehog-rs dependency
+
+### Fixed
+
+- Use std::process::ExitStatus and remove unused import of Child
+- Improve spawn_and_wait and is_success methods in Shell and Executor
+- Resolve compilation errors in create-rust-github-repo
+
+### Other
+
+- update mise version
+- Merge branch 'main' of github.com:DenisGorbachev/create-rust-github-repo
+- Use tokio Command instead of std Command
+- Refactor fn main in every bin and fn run to use async tokio. Keep stdout and stderr. Note that display_message_box call passes stderr as writer argument.
+- update deps
+
 ## [0.5.4](https://github.com/DenisGorbachev/create-rust-github-repo/compare/v0.5.3...v0.5.4) - 2024-08-26
 
 ### Added
