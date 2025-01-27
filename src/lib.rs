@@ -36,10 +36,10 @@ use std::fs::create_dir_all;
 use std::io;
 use std::io::Write;
 use std::path::{Path, PathBuf};
-use tokio::process::Command;
 use std::process::ExitStatus;
 use std::sync::LazyLock;
 use std::time::{SystemTime, UNIX_EPOCH};
+use tokio::process::Command;
 
 use anyhow::{anyhow, Context};
 use clap::{value_parser, Parser};
@@ -96,6 +96,9 @@ pub struct CreateRustGithubRepo {
 
     #[arg(long, help = "Shell command to push the commit (supports substitutions - see help below)", default_value = "git push")]
     repo_push_args: String,
+
+    #[arg(long, help = "Shell command to execute after all other commands (supports substitutions - see help below)")]
+    after_all_cmd: Option<String>,
 
     /// The probability of seeing a support link in a single execution of the command is `1 / {{this-field-value}}`.
     ///
@@ -220,6 +223,14 @@ impl CreateRustGithubRepo {
             .exec(replace_all(self.repo_push_args, &substitutions), &dir, stderr)
             .await
             .context("Failed to push changes")?;
+
+        // after all
+        if let Some(after_all_cmd) = self.after_all_cmd {
+            executor
+                .exec(replace_all(after_all_cmd, &substitutions), &dir, stderr)
+                .await
+                .context("Failed to run after_all_cmd")?;
+        }
 
         let timestamp = now.unwrap_or_else(get_unix_timestamp_or_zero);
 
@@ -397,7 +408,7 @@ static _POSTHOG_API_KEY: LazyLock<String> = LazyLock::new(|| {
     String::from_utf8(vec![
         112, 104, 99, 95, 111, 86, 117, 105, 97, 50, 73, 111, 119, 90, 121, 116, 99, 77, 84, 81, 110, 55, 108, 81, 86, 87, 103, 87, 89, 80, 117, 49, 99, 107, 100, 112, 106, 52, 51, 68, 110, 74, 55, 84, 97, 109, 74,
     ])
-        .unwrap()
+    .unwrap()
 });
 
 #[cfg(test)]

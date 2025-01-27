@@ -114,6 +114,9 @@ Options:
           
           [default: "git push"]
 
+      --after-all-cmd <AFTER_ALL_CMD>
+          Shell command to execute after all other commands (supports substitutions - see help below)
+
   -s, --support-link-probability <SUPPORT_LINK_PROBABILITY>
           The probability of seeing a support link in a single execution of the command is `1 / {{this-field-value}}`.
           
