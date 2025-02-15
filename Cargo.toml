@@ -1,6 +1,6 @@
 [package]
 name = "create-rust-github-repo"
-version = "0.5.5"
+version = "0.5.6"
 edition = "2021"
 description = "`create-rust-github-repo` is a CLI program that creates a new repository on GitHub, clones it locally, initializes a Rust project, copies the configs from a pre-existing directory."
 license = "Apache-2.0 OR MIT"
