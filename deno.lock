@@ -4,6 +4,7 @@
     "specifiers": {
       "jsr:@std/assert@1.0.0": "jsr:@std/assert@1.0.0",
       "jsr:@std/internal@^1.0.1": "jsr:@std/internal@1.0.1",
+      "jsr:@std/text@1.0.10": "jsr:@std/text@1.0.10",
       "npm:zx": "npm:zx@8.1.4"
     },
     "jsr": {
@@ -15,6 +16,9 @@
       },
       "@std/internal@1.0.1": {
         "integrity": "6f8c7544d06a11dd256c8d6ba54b11ed870aac6c5aeafff499892662c57673e6"
+      },
+      "@std/text@1.0.10": {
+        "integrity": "9dcab377450253c0efa9a9a0c731040bfd4e1c03f8303b5934381467b7954338"
       }
     },
     "npm": {

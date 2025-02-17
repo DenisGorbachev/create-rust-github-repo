@@ -39,13 +39,21 @@ create-rust-github-repo --name my-new-project --project-init-cmd "cargo init --l
 
 ## Installation
 
+Install as executable:
+
 ```shell
 cargo install --locked create-rust-github-repo
 ```
 
+Install as library dependency in your package:
+
+```shell
+cargo add create-rust-github-repo
+```
+
 ## Usage
 
-```
+```shell
 `create-rust-github-repo` is a CLI program that creates a new repository on GitHub, clones it locally, initializes a Rust project, copies the configs from a pre-existing directory.
 
 Usage: create-rust-github-repo [OPTIONS] --name <NAME>
