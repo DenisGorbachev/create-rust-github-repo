@@ -89,13 +89,13 @@ pub struct CreateRustGithubRepo {
     project_test_cmd: String,
 
     #[arg(long, help = "Shell command to add new files (supports substitutions - see help below)", default_value = "git add .")]
-    repo_add_args: String,
+    repo_add_cmd: String,
 
     #[arg(long, help = "Shell command to make a commit (supports substitutions - see help below)", default_value = "git commit -m \"feat: setup project\"")]
-    repo_commit_args: String,
+    repo_commit_cmd: String,
 
     #[arg(long, help = "Shell command to push the commit (supports substitutions - see help below)", default_value = "git push")]
-    repo_push_args: String,
+    repo_push_cmd: String,
 
     #[arg(long, help = "Shell command to execute after all other commands (supports substitutions - see help below)")]
     after_all_cmd: Option<String>,
@@ -208,19 +208,19 @@ impl CreateRustGithubRepo {
 
         // add
         executor
-            .exec(replace_all(self.repo_add_args, &substitutions), &dir, stderr)
+            .exec(replace_all(self.repo_add_cmd, &substitutions), &dir, stderr)
             .await
             .context("Failed to add files for commit")?;
 
         // commit
         executor
-            .exec(replace_all(self.repo_commit_args, &substitutions), &dir, stderr)
+            .exec(replace_all(self.repo_commit_cmd, &substitutions), &dir, stderr)
             .await
             .context("Failed to commit changes")?;
 
         // push
         executor
-            .exec(replace_all(self.repo_push_args, &substitutions), &dir, stderr)
+            .exec(replace_all(self.repo_push_cmd, &substitutions), &dir, stderr)
             .await
             .context("Failed to push changes")?;
 
