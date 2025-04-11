@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.6.2](https://github.com/DenisGorbachev/create-rust-github-repo/compare/v0.6.1...v0.6.2) - 2025-04-11
+
+### Fixed
+
+- lint
+
 ## [0.6.1](https://github.com/DenisGorbachev/create-rust-github-repo/compare/v0.6.0...v0.6.1) - 2025-04-10
 
 ### Other
