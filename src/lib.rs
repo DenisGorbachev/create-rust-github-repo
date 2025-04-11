@@ -388,7 +388,7 @@ fn check_status(status: ExitStatus) -> io::Result<ExitStatus> {
     if status.success() {
         Ok(status)
     } else {
-        Err(io::Error::new(io::ErrorKind::Other, format!("Process exited with with status {}", status)))
+        Err(io::Error::other(format!("Process exited with with status {}", status)))
     }
 }
 
