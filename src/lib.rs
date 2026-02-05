@@ -234,7 +234,7 @@ impl CreateRustGithubRepo {
 
         let timestamp = now.unwrap_or_else(get_unix_timestamp_or_zero);
 
-        if self.support_link_probability != 0 && timestamp % self.support_link_probability == 0 {
+        if self.support_link_probability != 0 && timestamp.is_multiple_of(self.support_link_probability) {
             if let Some(new_issue_url) = get_new_issue_url(CARGO_PKG_REPOSITORY) {
                 let exe_name = get_current_exe_name()
                     .and_then(|name| name.into_string().ok())
