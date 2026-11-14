@@ -27,4 +27,4 @@ pre-commit:
 commit-msg:
   commands:
     commitlint:
-      run: mise exec -- commitlint --edit "$1"
+      run: mise exec -- commitlint --extends "$(mise where npm:@commitlint/config-conventional)/lib/node_modules/@commitlint/config-conventional/lib/index.js" --edit "$1"
